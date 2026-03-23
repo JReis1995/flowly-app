@@ -1,0 +1,772 @@
+<!-- VIEW: CENTRAL SAAS -->
+<div id="viewCentral" class="view-section hidden animate-slide-up">
+    <div class="flex items-center gap-2 mb-6 cursor-pointer text-slate-500 hover:text-flowly-midnight transition"
+        onclick="nav('home')">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i><span class="text-xs font-bold uppercase tracking-tight">Painel
+            Principal</span>
+    </div>
+
+    <div class="flex justify-between items-end mb-8">
+        <div>
+            <h2 class="text-3xl font-black text-flowly-midnight tracking-tighter uppercase leading-none">Rede SaaS</h2>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Gestão de Infraestrutura</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+            <button id="btnNavPlanos"
+                class="bg-white text-flowly-midnight px-5 py-2.5 rounded-xl font-black uppercase text-[10px] shadow-sm border border-slate-100 flex items-center gap-2 hover:bg-slate-50 transition active:scale-95">
+                <i data-lucide="package" class="w-4 h-4 text-flowly-primary"></i> Configurar Planos
+            </button>
+            <button onclick="openAIPacksListModal()"
+                class="flex items-center gap-2 bg-[#FFFFFF] border border-flowly-border text-[#020617] hover:border-[#06B6D4] hover:text-[#06B6D4] px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm"><i
+                    class="fas fa-box-open"></i> Pacotes IA</button>
+            <button id="btnNavEquipaFlowly"
+                class="flex items-center gap-2 bg-[#FFFFFF] border border-flowly-border text-[#020617] hover:border-[#06B6D4] hover:text-[#06B6D4] px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm"><i
+                    data-lucide="users" class="w-4 h-4"></i> Equipa Flowly</button>
+        </div>
+    </div>
+
+    <div id="centralMRRCard"
+        class="mb-8 p-6 rounded-[2rem] bg-gradient-to-br from-flowly-primary/10 to-cyan-100 dark:from-flowly-primary/20 dark:to-cyan-900/30 border border-cyan-200 dark:border-cyan-800 shadow-sm">
+        <p class="text-[10px] font-black text-cyan-700 dark:text-cyan-400 uppercase tracking-widest">Receita Recorrente
+            Mensal (MRR)</p>
+        <h3 id="centralMRRValue" class="font-black text-3xl text-flowly-midnight dark:text-slate-50 mt-1">--€</h3>
+        <p class="text-[9px] text-slate-500 dark:text-slate-400 mt-1">Valor real pós-desconto. Clientes em período de
+            oferta não contam.</p>
+    </div>
+
+    <div id="centralClientesSection" class="space-y-6">
+        <div
+            class="flex gap-2 mb-8 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-700">
+            <button id="tabAtivos"
+                class="flex-1 py-3 rounded-xl text-[10px] font-black bg-flowly-midnight text-white shadow-md transition-all">CLIENTES
+                ATIVOS</button>
+            <button id="tabInativos"
+                class="flex-1 py-3 rounded-xl text-[10px] font-black text-slate-400 hover:bg-white dark:hover:bg-slate-700 transition-all">SUSPENSOS</button>
+        </div>
+
+        <div class="flex flex-col gap-3 mb-4">
+            <input id="centralSearchInput" type="text" placeholder="Pesquisar por nome ou email..."
+                class="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary text-flowly-midnight dark:text-slate-50 placeholder-slate-400">
+            <button id="btnBulkActions" data-action="open-bulk-modal"
+                class="bg-flowly-primary text-white py-3.5 rounded-2xl font-black text-xs shadow-lg hover:bg-cyan-400 transition active:scale-95 flex items-center justify-center gap-2">
+                &#128295; Ações em Massa
+            </button>
+        </div>
+
+        <div id="clientList" class="space-y-4 pb-6"></div>
+
+        <button id="btnOpenClientForm"
+            class="w-full bg-flowly-primary text-white py-5 rounded-[2rem] font-black uppercase text-xs shadow-xl flex items-center justify-center gap-2 mt-8 active:scale-95 transition-all border-t border-white/20">
+            <i data-lucide="plus-circle" class="w-5 h-5"></i> Registar Novo Cliente SaaS
+        </button>
+    </div>
+
+    <div id="centralEquipaSection" class="hidden space-y-6">
+        <div class="flex justify-between items-end mb-6">
+            <h3 class="text-lg font-black text-flowly-midnight dark:text-slate-50 uppercase tracking-tight">Equipa
+                Flowly</h3>
+            <button id="btnAddTeamMember"
+                class="hidden bg-flowly-primary text-white px-4 py-2 rounded-xl font-black text-xs shadow-lg hover:bg-cyan-500 transition flex items-center gap-2"
+                onclick="document.getElementById('addTeamMemberModal').classList.remove('hidden')">
+                <i data-lucide="user-plus" class="w-4 h-4"></i> Adicionar Membro
+            </button>
+        </div>
+        <div
+            class="overflow-x-auto rounded-2xl border border-flowly-border dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 dark:bg-slate-700/50">
+                    <tr>
+                        <th
+                            class="text-left px-4 py-3 font-black text-slate-600 dark:text-slate-300 uppercase text-[10px]">
+                            Nome</th>
+                        <th
+                            class="text-left px-4 py-3 font-black text-slate-600 dark:text-slate-300 uppercase text-[10px]">
+                            Email</th>
+                        <th
+                            class="text-left px-4 py-3 font-black text-slate-600 dark:text-slate-300 uppercase text-[10px]">
+                            Cargo</th>
+                        <th
+                            class="text-left px-4 py-3 font-black text-slate-600 dark:text-slate-300 uppercase text-[10px]">
+                            Status</th>
+                        <th
+                            class="text-left px-4 py-3 font-black text-slate-600 dark:text-slate-300 uppercase text-[10px]">
+                            Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="flowlyTeamTableBody" class="divide-y divide-slate-100 dark:divide-slate-700">
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-slate-400">A carregar...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- VIEW: PLANOS (Fallback Externo) -->
+<div id="viewPlanos" class="view-section hidden animate-slide-up">
+    <div class="flex items-center gap-2 mb-6 cursor-pointer text-slate-500 hover:text-flowly-midnight transition"
+        onclick="nav('central')">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i><span class="text-xs font-bold uppercase">Voltar à Rede</span>
+    </div>
+    <div class="bg-slate-50 border border-flowly-border rounded-2xl p-8 text-center">
+        <p class="text-[#64748B] text-sm font-bold mb-4">A configuração de planos está no modal. Use o botão na Rede
+            SaaS.</p>
+        <button type="button" onclick="openModalConfigPlanos()"
+            class="px-5 py-2.5 rounded-xl font-black uppercase text-[10px] bg-[#06B6D4] text-white shadow-lg hover:opacity-90 transition">Abrir
+            Configuração de Planos</button>
+    </div>
+</div>
+
+<!-- MODAL: AÇÕES EM MASSA (Desconto, Faturação) -->
+<div id="modalBulkActions"
+    class="hidden fixed inset-0 z-[25001] bg-black/60 flex items-center justify-center p-6 backdrop-blur-sm">
+    <div
+        class="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
+        <div class="bg-flowly-midnight px-6 pt-6 pb-4 flex justify-between items-center shrink-0">
+            <div>
+                <p class="text-white font-black text-base">Ações em Massa</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Desconto, oferta e faturação</p>
+            </div>
+            <button data-action="close-bulk-modal" class="bg-white/10 p-2 rounded-xl hover:bg-white/20 transition"><i
+                    data-lucide="x" class="w-4 h-4 text-white"></i></button>
+        </div>
+        <div class="flex-1 overflow-y-auto max-h-[75vh] p-6 space-y-4">
+            <!-- BLOCO 1: Faturação -->
+            <div class="bg-slate-50 dark:bg-slate-700/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-600">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Faturação</p>
+                <button type="button" data-action="bulk-faturar"
+                    class="w-full bg-flowly-primary text-white py-4 rounded-2xl font-black text-sm shadow-lg hover:bg-cyan-400 transition active:scale-95 flex items-center justify-center gap-2">
+                    &#9889; Faturar Selecionados agora
+                </button>
+            </div>
+            <!-- BLOCO 2: Desconto Comercial -->
+            <div class="bg-slate-50 dark:bg-slate-700/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-600">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Desconto Comercial</p>
+                <div class="space-y-3">
+                    <div class="flex items-center gap-3">
+                        <input type="number" id="bulk_desconto" min="0" max="100" value="0" placeholder="Desconto %"
+                            class="flex-1 bg-slate-50 dark:bg-slate-700 p-4 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary text-flowly-midnight dark:text-slate-50">
+                        <span class="text-sm font-black text-flowly-primary">%</span>
+                    </div>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="bulk_desconto_permanente"
+                            class="w-5 h-5 accent-flowly-primary rounded" checked
+                            onchange="var v=document.getElementById('bulk_desconto_validade');v.disabled=this.checked;if(this.checked)v.value=''">
+                        <span class="text-sm font-bold text-flowly-midnight dark:text-slate-50">Permanente</span>
+                    </label>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase">Válido até</label>
+                        <input type="date" id="bulk_desconto_validade"
+                            class="w-full bg-slate-50 dark:bg-slate-700 p-4 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary text-flowly-midnight dark:text-slate-50">
+                    </div>
+                    <button type="button" data-action="bulk-apply-desconto"
+                        class="w-full bg-flowly-midnight text-white py-3 rounded-2xl font-black text-sm shadow-lg hover:bg-slate-800 transition active:scale-95 flex items-center justify-center gap-2">
+                        Aplicar Desconto
+                    </button>
+                </div>
+            </div>
+            <!-- BLOCO 3: Oferta de Mensalidades -->
+            <div class="bg-slate-50 dark:bg-slate-700/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-600">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Oferta de Mensalidades
+                </p>
+                <div class="space-y-3">
+                    <input type="number" id="bulk_mensalidades_oferta" min="0" value="0" placeholder="Quantidade"
+                        class="w-full bg-slate-50 dark:bg-slate-700 p-4 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary text-flowly-midnight dark:text-slate-50">
+                    <button type="button" data-action="bulk-apply-oferta"
+                        class="w-full bg-flowly-midnight text-white py-3 rounded-2xl font-black text-sm shadow-lg hover:bg-slate-800 transition active:scale-95 flex items-center justify-center gap-2">
+                        Aplicar Oferta
+                    </button>
+                </div>
+            </div>
+            <!-- BLOCO 4: Plano SaaS e Créditos IA -->
+            <div class="bg-slate-50 dark:bg-slate-700/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-600">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Plano e Créditos IA</p>
+                <div class="space-y-3">
+                    <button type="button" data-action="bulk-mass-plan"
+                        class="w-full text-left px-4 py-3 rounded-xl bg-white dark:bg-slate-800 border border-flowly-border dark:border-slate-600 font-bold text-sm text-flowly-midnight dark:text-slate-50 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                        Configurar Plano SaaS
+                    </button>
+                    <button type="button" data-action="bulk-mass-credits"
+                        class="w-full text-left px-4 py-3 rounded-xl bg-white dark:bg-slate-800 border border-flowly-border dark:border-slate-600 font-bold text-sm text-flowly-midnight dark:text-slate-50 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                        Atribuir Créditos IA
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: AÇÕES EM MASSA (Multi-Ação: Créditos IA, Plano, Estado, Eliminar) -->
+<div id="modalBulkAI"
+    class="hidden fixed inset-0 z-[26000] bg-black/60 flex items-center justify-center p-6 backdrop-blur-sm">
+    <div
+        class="bg-white rounded-[2rem] w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden animate-slide-up flex flex-col">
+        <div class="bg-[#020617] px-6 pt-6 pb-4 flex items-center justify-between shrink-0">
+            <div>
+                <p class="text-white font-black text-base">Ações em Massa</p>
+                <p class="text-[10px] text-[#64748B] mt-0.5 font-bold uppercase tracking-widest">Plano, Estado, Créditos
+                    IA ou Eliminar</p>
+            </div>
+            <button type="button" onclick="document.getElementById('modalBulkAI').classList.add('hidden')"
+                class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition">
+                <i class="fas fa-times text-white"></i>
+            </button>
+        </div>
+        <div class="p-6 flex-1 overflow-y-auto space-y-4">
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2">Ação</label>
+                <select id="bulkAIActionSelect"
+                    class="w-full bg-[#F8FAFC] border border-flowly-border rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-[#06B6D4] focus:border-[#06B6D4]">
+                    <option value="credits">Atribuir Créditos IA</option>
+                    <option value="plan">Alterar Plano</option>
+                    <option value="status">Alterar Estado (Ativo/Suspenso)</option>
+                    <option value="delete">Eliminar Selecionados</option>
+                </select>
+            </div>
+            <div id="bulkAICreditsBlock" class="space-y-2">
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider">Quantidade de
+                    créditos</label>
+                <input type="number" id="bulkAICreditsInput" min="0" value="0" placeholder="Ex: 500"
+                    class="w-full bg-[#F8FAFC] border border-flowly-border rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-[#06B6D4] focus:border-[#06B6D4]">
+            </div>
+            <div id="bulkAIPlanBlock" class="hidden space-y-2">
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider">Novo plano</label>
+                <select id="bulkAIPlanSelect"
+                    class="w-full bg-[#F8FAFC] border border-flowly-border rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-[#06B6D4] focus:border-[#06B6D4]">
+                    <option value="">A carregar...</option>
+                </select>
+            </div>
+            <div id="bulkAIStatusBlock" class="hidden space-y-2">
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider">Estado</label>
+                <select id="bulkAIStatusSelect"
+                    class="w-full bg-[#F8FAFC] border border-flowly-border rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-[#06B6D4] focus:border-[#06B6D4]">
+                    <option value="Ativo">Ativo</option>
+                    <option value="Suspenso">Suspenso</option>
+                </select>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="button" id="btnBulkAIConfirm"
+                    class="flex-1 bg-[#06B6D4] text-white py-3 rounded-xl font-black text-sm shadow-lg hover:bg-cyan-500 transition active:scale-95">
+                    Confirmar
+                </button>
+                <button type="button" onclick="document.getElementById('modalBulkAI').classList.add('hidden')"
+                    class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-black text-sm hover:bg-slate-200 transition active:scale-95">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: EQUIPA FLOWLY - ADICIONAR -->
+<div id="addTeamMemberModal"
+    class="hidden fixed inset-0 z-[26000] bg-black/60 flex items-center justify-center p-6 backdrop-blur-sm">
+    <div
+        class="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-sm shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden animate-slide-up">
+        <div class="bg-flowly-midnight px-6 pt-6 pb-4">
+            <h3 class="text-white font-black text-base">Adicionar Membro à Equipa</h3>
+            <p class="text-[10px] text-slate-400 mt-0.5">Será enviado um email com link para definir a password</p>
+        </div>
+        <div class="p-6 space-y-4">
+            <div><label class="text-[10px] font-black text-slate-500 uppercase">Nome</label><input
+                    id="addTeamMemberNome"
+                    class="w-full bg-slate-50 dark:bg-slate-700 p-3 rounded-xl font-bold text-sm mt-1 outline-none focus:ring-2 ring-flowly-primary/50 text-flowly-midnight dark:text-slate-50"
+                    placeholder="Nome completo"></div>
+            <div><label class="text-[10px] font-black text-slate-500 uppercase">Email</label><input
+                    id="addTeamMemberEmail" type="email"
+                    class="w-full bg-slate-50 dark:bg-slate-700 p-3 rounded-xl font-bold text-sm mt-1 outline-none focus:ring-2 ring-flowly-primary/50 text-flowly-midnight dark:text-slate-50"
+                    placeholder="email@flowly.pt"></div>
+            <div><label class="text-[10px] font-black text-slate-500 uppercase">Cargo</label>
+                <select id="addTeamMemberCargo"
+                    class="w-full bg-slate-50 dark:bg-slate-700 p-3 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-flowly-primary/50 text-flowly-midnight dark:text-slate-50">
+                    <option value="Admin" selected>Admin</option>
+                    <option value="Developer">Developer</option>
+                    <option value="Owner">Owner</option>
+                </select>
+            </div>
+        </div>
+        <div class="p-6 pt-0 flex gap-3">
+            <button onclick="document.getElementById('addTeamMemberModal').classList.add('hidden')"
+                class="flex-1 py-3 rounded-xl font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">Cancelar</button>
+            <button onclick="submitAddTeamMember()"
+                class="flex-1 py-3 rounded-xl font-black text-white bg-flowly-primary shadow-lg hover:bg-cyan-500">Adicionar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: EQUIPA FLOWLY - EDITAR -->
+<div id="editTeamMemberModal"
+    class="hidden fixed inset-0 z-[26001] bg-black/60 flex items-center justify-center p-6 backdrop-blur-sm">
+    <div
+        class="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-sm shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden animate-slide-up">
+        <div class="bg-flowly-midnight px-6 pt-6 pb-4">
+            <h3 class="text-white font-black text-base">Editar Membro</h3>
+            <p id="editTeamMemberEmailDisplay" class="text-[10px] text-slate-400 mt-0.5"></p>
+        </div>
+        <div class="p-6 space-y-4">
+            <input type="hidden" id="editTeamMemberEmail" value="">
+            <div><label class="text-[10px] font-black text-slate-500 uppercase">Nome</label><input
+                    id="editTeamMemberNome"
+                    class="w-full bg-slate-50 dark:bg-slate-700 p-3 rounded-xl font-bold text-sm mt-1 outline-none focus:ring-2 ring-flowly-primary/50 text-flowly-midnight dark:text-slate-50"
+                    placeholder="Nome completo"></div>
+            <div><label class="text-[10px] font-black text-slate-500 uppercase">Cargo</label>
+                <select id="editTeamMemberCargo"
+                    class="w-full bg-slate-50 dark:bg-slate-700 p-3 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-flowly-primary/50 text-flowly-midnight dark:text-slate-50">
+                    <option value="Owner">Owner</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Developer">Developer</option>
+                </select>
+            </div>
+            <div><label class="text-[10px] font-black text-slate-500 uppercase">Permissões</label>
+                <div id="adminTeamModulesContainer" class="grid grid-cols-2 gap-2 mt-4 max-h-48 overflow-y-auto"></div>
+            </div>
+        </div>
+        <div class="p-6 pt-0 flex gap-3">
+            <button onclick="document.getElementById('editTeamMemberModal').classList.add('hidden')"
+                class="flex-1 py-3 rounded-xl font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600">Cancelar</button>
+            <button onclick="submitEditTeamMember()"
+                class="flex-1 py-3 rounded-xl font-black text-white bg-flowly-primary shadow-lg hover:bg-cyan-500">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: LISTA CONFIGURAÇÃO PLANOS -->
+<div id="modalConfigPlanos"
+    class="fixed inset-0 z-[4999] bg-[#020617]/80 backdrop-blur-sm hidden flex items-center justify-center p-4"
+    onclick="if(event.target===this) closeModalConfigPlanos()">
+    <div class="bg-white w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-flowly-border"
+        onclick="event.stopPropagation()">
+        <header
+            class="flex-shrink-0 px-6 py-5 bg-[#020617] text-white flex items-center justify-between border-b border-flowly-border">
+            <div>
+                <h2 class="text-xl font-black uppercase tracking-tighter">Configuração de Planos</h2>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Catálogo de subscrição
+                </p>
+            </div>
+            <button type="button" onclick="closeModalConfigPlanos()"
+                class="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-[#EF4444] text-white transition-all"
+                aria-label="Fechar">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </header>
+        <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 bg-[#FFFFFF]">
+            <div id="plansList" class="mb-4">
+                <div id="plansLoadingState" class="flex flex-col items-center py-10">
+                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#06B6D4]"></div>
+                    <p class="text-slate-500 mt-2 text-sm">A carregar planos...</p>
+                </div>
+
+                <div id="plansTableContainer" class="hidden overflow-x-auto border border-flowly-border rounded-xl">
+                    <table class="min-w-full bg-white">
+                        <thead class="bg-[#020617] text-white">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Nome</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Preço</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="plansTableBody" class="divide-y divide-[#E2E8F0]">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeModalConfigPlanos()"
+                    class="px-5 py-2.5 rounded-xl text-sm font-bold text-[#64748B] hover:bg-slate-100 border border-flowly-border transition">Fechar</button>
+                <button type="button" onclick="openPlanForm()"
+                    class="px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest bg-[#06B6D4] text-white shadow-lg hover:opacity-90 transition-all flex items-center gap-2">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Novo Plano
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: FORMULÁRIO PLANOS -->
+<div id="planForm" class="hidden fixed inset-0 z-[5000] bg-white flex-col animate-slide-up">
+    <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+        <div>
+            <h3 class="font-black text-xl text-flowly-midnight">Configurar Plano</h3>
+            <p class="text-xs text-slate-400">Defina o preço e módulos.</p>
+        </div>
+        <button onclick="document.getElementById('planForm').style.display='none'"
+            class="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition"><i data-lucide="x"
+                class="w-6 h-6 text-slate-600"></i></button>
+    </div>
+    <div class="flex-1 overflow-y-auto p-6 space-y-6">
+        <input type="hidden" id="pf_id">
+        <div class="space-y-2">
+            <p class="text-[10px] font-black text-slate-400 uppercase ml-2">Nome do Plano</p><input id="pf_name"
+                class="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary transition">
+        </div>
+        <div class="space-y-2">
+            <p class="text-[10px] font-black text-slate-400 uppercase ml-2">Preço Mensal (€)</p><input id="pf_price"
+                type="number"
+                class="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary transition">
+        </div>
+
+        <hr class="border-flowly-border my-4">
+        <h4 class="text-[#020617] text-sm font-bold mb-3">Campanha Promocional (Visível ao Cliente)</h4>
+        <label class="text-[10px] font-black text-[#64748B] uppercase ml-2">Desconto Comercial (%)</label>
+        <input type="number" step="1" min="0" max="100" id="pf_desconto"
+            class="w-full bg-[#F8FAFC] border border-flowly-border text-[#020617] p-3 rounded-xl focus:outline-none focus:border-[#06B6D4] mb-3"
+            placeholder="Ex: 20">
+        <label class="flex items-center gap-2 text-sm text-[#020617] font-bold mb-3 cursor-pointer">
+            <input type="checkbox" id="pf_desconto_permanente"
+                class="w-5 h-5 text-[#06B6D4] rounded border-flowly-border focus:ring-[#06B6D4]"> Promoção Fundador
+            (Permanente)
+        </label>
+        <div id="pf_desconto_container">
+            <label class="text-[10px] font-black text-[#64748B] uppercase ml-2">Válido até</label>
+            <input type="date" id="pf_desconto_validade"
+                class="w-full bg-[#F8FAFC] border border-flowly-border text-[#020617] p-3 rounded-xl focus:outline-none focus:border-[#FACC15]">
+        </div>
+
+        <div class="space-y-2">
+            <p class="text-[10px] font-black text-slate-400 uppercase ml-2">Oferta de Mensalidades (padrão)</p><input
+                id="pf_mensalidades_oferta" type="number" min="0" value="0"
+                class="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary transition">
+        </div>
+        <div class="space-y-2">
+            <p class="text-[10px] font-black text-slate-400 uppercase ml-2">Créditos IA Base do Plano</p><input
+                type="number" id="planAiCredits" name="planAiCredits"
+                class="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary transition"
+                placeholder="Ex: 500" min="0">
+        </div>
+
+        <h4 class="text-[#020617] text-sm font-bold mt-6 mb-2">Pré-visualização do Cliente</h4>
+        <div id="livePlanPreview"
+            class="min-h-[100px] border border-dashed border-flowly-border rounded-xl flex items-center justify-center text-[#64748B] text-sm">
+            Preview carregará aqui</div>
+
+        <div class="space-y-3 pt-4 border-t border-slate-50">
+            <p class="text-[10px] font-black text-flowly-midnight uppercase tracking-widest">Incluir Módulos</p>
+            <label class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl cursor-pointer"><span
+                    class="font-bold text-xs text-slate-600">Dashboard & BI</span><input type="checkbox"
+                    id="pf_mod_dash" class="w-5 h-5 accent-flowly-primary rounded-lg"></label>
+            <label class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl cursor-pointer"><span
+                    class="font-bold text-xs text-slate-600">Logística AI</span><input type="checkbox" id="pf_mod_log"
+                    class="w-5 h-5 accent-flowly-primary rounded-lg"></label>
+            <label class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl cursor-pointer"><span
+                    class="font-bold text-xs text-slate-600">Recursos Humanos</span><input type="checkbox"
+                    id="pf_mod_rh" class="w-5 h-5 accent-flowly-primary rounded-lg"></label>
+            <label class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl cursor-pointer"><span
+                    class="font-bold text-xs text-slate-600">Conta Corrente</span><input type="checkbox" id="pf_mod_cc"
+                    class="w-5 h-5 accent-flowly-primary rounded-lg"></label>
+            <label class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl cursor-pointer"><span
+                    class="font-bold text-xs text-slate-600">Gestão de Acessos</span><input type="checkbox"
+                    id="pf_mod_access" class="w-5 h-5 accent-flowly-primary rounded-lg"></label>
+            <label class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl cursor-pointer"><span
+                    class="font-bold text-xs text-slate-600">IA Insight</span><input type="checkbox" id="pf_mod_ia"
+                    class="w-5 h-5 accent-flowly-primary rounded-lg"></label>
+        </div>
+    </div>
+    <div class="p-6 border-t border-slate-100 bg-white safe-area-pb"><button onclick="savePlan()"
+            class="w-full bg-[#10B981] text-white py-5 rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition">Gravar
+            Plano</button></div>
+</div>
+
+<!-- MODAL: LISTA PACOTES IA -->
+<div id="modalAIPacksList"
+    class="fixed inset-0 z-[6000] bg-[#020617]/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-2xl rounded-3xl p-8 shadow-2xl relative">
+        <button onclick="closeAIPacksListModal()"
+            class="absolute top-6 right-6 w-10 h-10 flex items-center justify-center bg-[#020617] text-white rounded-full hover:bg-[#EF4444] transition-all z-10">
+            <i class="fas fa-times text-white"></i>
+        </button>
+
+        <div class="mb-8">
+            <h3 class="text-[#020617] text-2xl font-black uppercase tracking-tighter text-left">Gestão de Pacotes IA
+            </h3>
+            <p class="text-[10px] font-black text-[#64748B] uppercase tracking-widest mt-1">Controlo de boosters e
+                créditos extras</p>
+        </div>
+
+        <div id="aiPacksListContainer" class="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
+        </div>
+
+        <div class="mt-8 pt-6 border-t border-flowly-border flex justify-end">
+            <button onclick="openAIPackFormModal()"
+                class="bg-[#06B6D4] text-white px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:opacity-90 shadow-lg transition-all">
+                <i class="fas fa-plus mr-2"></i> Criar Novo Pacote
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: FORMULÁRIO PACOTES IA -->
+<div id="modalAIPackForm"
+    class="fixed inset-0 z-[6001] bg-[#020617]/90 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div id="modalAIPackCard" class="bg-white w-full max-w-xl rounded-3xl p-8 shadow-2xl">
+        <div id="aiPackFormContent">
+            <div
+                class="px-6 pt-6 pb-4 border-b border-slate-100 flex justify-between items-center bg-white rounded-2xl mb-4">
+                <div>
+                    <h3 class="font-black text-xl text-flowly-midnight">Configurar Pack IA</h3>
+                    <p class="text-xs text-slate-400">Defina o preço, créditos e desconto.</p>
+                </div>
+                <button onclick="closeAIPackFormModal()"
+                    class="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition"><i data-lucide="x"
+                        class="w-5 h-5 text-slate-600"></i></button>
+            </div>
+            <div class="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+                <input type="hidden" id="aiPackId">
+                <div class="space-y-1.5">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nome do Pack IA</label>
+                    <input id="aiPackName"
+                        class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none border border-flowly-border focus:border-flowly-primary transition"
+                        placeholder="Ex: Pack 500 Créditos">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Créditos IA a Atribuir</label>
+                    <input type="number" id="aiPackCredits"
+                        class="w-full bg-[#F8FAFC] border border-flowly-border text-[#020617] p-3 rounded-xl focus:outline-none focus:border-[#06B6D4] mb-3"
+                        placeholder="Ex: 500">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Preço do Pack (€)</label>
+                    <input id="aiPackPrice" type="number" min="0"
+                        class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none border border-flowly-border focus:border-flowly-primary transition"
+                        placeholder="Ex: 49.90">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Link de Pagamento (URL Stripe,
+                        etc.)</label>
+                    <input id="aiPackLink" type="url"
+                        class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none border border-flowly-border focus:border-flowly-primary transition"
+                        placeholder="https://buy.stripe.com/...">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Status</label>
+                    <select id="aiPackStatus"
+                        class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none border border-flowly-border focus:border-flowly-primary transition">
+                        <option value="Ativo">Ativo</option>
+                        <option value="Inativo">Inativo</option>
+                    </select>
+                </div>
+
+                <hr class="border-flowly-border my-4">
+                <h4 class="text-[#020617] text-sm font-bold mb-3">Campanha Promocional (Visível ao Cliente)</h4>
+                <label class="text-[10px] font-black text-[#64748B] uppercase ml-2">Desconto Comercial (%)</label>
+                <input type="number" step="1" min="0" max="100" id="pack_desconto"
+                    class="w-full bg-[#F8FAFC] border border-flowly-border text-[#020617] p-3 rounded-xl focus:outline-none focus:border-[#06B6D4] mb-3"
+                    placeholder="Ex: 20">
+                <label class="flex items-center gap-2 text-sm text-[#020617] font-bold mb-3 cursor-pointer">
+                    <input type="checkbox" id="pack_desconto_permanente"
+                        class="w-5 h-5 text-[#06B6D4] rounded border-flowly-border focus:ring-[#06B6D4]"> Promoção Fundador
+                    (Permanente)
+                </label>
+                <div id="pack_desconto_container">
+                    <label class="text-[10px] font-black text-[#64748B] uppercase ml-2">Válido até</label>
+                    <input type="date" id="pack_desconto_validade"
+                        class="w-full bg-[#F8FAFC] border border-flowly-border text-[#020617] p-3 rounded-xl focus:outline-none focus:border-[#FACC15]">
+                </div>
+
+                <h4 class="text-[#020617] text-sm font-bold mt-6 mb-2">Pré-visualização do Cliente</h4>
+                <div id="livePackPreview"
+                    class="min-h-[100px] border border-dashed border-flowly-border rounded-xl flex items-center justify-center text-[#64748B] text-sm">
+                    Preview carregará aqui</div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between mt-8 pt-6 border-t border-flowly-border">
+            <button onclick="closeAIPackFormModal()"
+                class="text-[#64748B] font-bold hover:text-[#020617] transition-all flex items-center gap-2">
+                <i class="fas fa-arrow-left"></i> Voltar à Lista
+            </button>
+            <button onclick="saveAIPack()" id="btnSavePack"
+                class="bg-[#020617] text-white px-8 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-[#06B6D4] transition-all shadow-lg">
+                Gravar Pack
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: NOVO CLIENTE SAAS -->
+<div id="modalNewClient"
+    class="hidden fixed inset-0 z-[10005] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm transition-opacity duration-300">
+    <div
+        class="bg-white p-8 pb-8 rounded-[2rem] w-full max-w-sm space-y-6 shadow-2xl animate-slide-up relative max-h-[90vh] overflow-y-auto">
+        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-flowly-primary to-cyan-300"></div>
+        <div class="text-center">
+            <div
+                class="bg-cyan-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-flowly-primary">
+                <i data-lucide="building-2" class="w-8 h-8"></i>
+            </div>
+            <h3 class="font-black text-xl text-flowly-midnight">Novo Cliente SaaS</h3>
+            <p class="text-xs text-slate-400 mt-1">Cria a infraestrutura e envia o convite.</p>
+        </div>
+
+        <div class="space-y-4">
+            <div class="group">
+                <label class="text-[10px] font-bold text-slate-400 uppercase ml-3">Empresa</label>
+                <input id="nc_name" placeholder="Nome da Empresa"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary focus:bg-white transition-all text-flowly-midnight">
+            </div>
+
+            <div class="group">
+                <label class="text-[10px] font-bold text-slate-400 uppercase ml-3">Gestor</label>
+                <input id="nc_email" placeholder="Email do Gestor"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary focus:bg-white transition-all text-flowly-midnight">
+            </div>
+
+            <div class="group">
+                <label class="text-[10px] font-bold text-slate-400 uppercase ml-3">Plano</label>
+                <div class="relative">
+                    <select id="nc_plan_select"
+                        class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none appearance-none border-2 border-transparent focus:border-flowly-primary cursor-pointer text-flowly-midnight">
+                        <!-- Opções preenchidas dinamicamente em openClientForm -->
+                    </select>
+                    <i data-lucide="chevron-down"
+                        class="absolute right-4 top-4 w-5 h-5 text-slate-400 pointer-events-none"></i>
+                </div>
+            </div>
+
+            <div class="group">
+                <label class="text-[10px] font-bold text-slate-400 uppercase ml-3">Créditos IA
+                    (Exceção/Override)</label>
+                <input type="number" id="nc_aiCredits" name="aiCredits"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary text-flowly-midnight"
+                    placeholder="Deixe vazio para usar o limite do Plano." min="0">
+            </div>
+
+            <div class="group">
+                <label class="text-[10px] font-bold text-slate-400 uppercase ml-3">Vertical de Negócio</label>
+                <div class="relative">
+                    <select id="nc_businessVertical"
+                        class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none appearance-none border-2 border-transparent focus:border-flowly-primary cursor-pointer text-flowly-midnight">
+                        <option value="Standard">Standard</option>
+                        <option value="Condominium">Condominium (Gestão de Condomínios)</option>
+                    </select>
+                    <i data-lucide="chevron-down"
+                        class="absolute right-4 top-4 w-5 h-5 text-slate-400 pointer-events-none"></i>
+                </div>
+            </div>
+
+            <div class="group">
+                <label class="text-[10px] font-bold text-slate-400 uppercase ml-3">NIF da Empresa</label>
+                <input type="text" id="nc_nifEmpresa" placeholder="Ex: 123456789" maxlength="9"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary focus:bg-white transition-all text-flowly-midnight">
+            </div>
+
+            <div class="group pt-4 border-t border-slate-100">
+                <p class="text-[10px] font-black text-flowly-midnight uppercase tracking-widest mb-2">Desconto Comercial
+                </p>
+                <div class="flex items-center gap-4 mb-3">
+                    <input type="range" id="nc_desconto" min="0" max="100" value="0"
+                        class="flex-1 accent-flowly-primary">
+                    <span id="nc_desconto_val" class="text-sm font-black text-flowly-primary w-12">0%</span>
+                </div>
+                <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 mb-3">
+                    <input type="checkbox" id="nc_checkDescontoPermanente" class="accent-flowly-primary" checked>
+                    <span class="text-xs font-bold text-slate-600">Desconto Permanente</span>
+                </label>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Válido até</label>
+                    <input type="date" id="nc_inputDescontoValidade"
+                        class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary text-flowly-midnight"
+                        disabled>
+                </div>
+            </div>
+            <div class="group pt-4 border-t border-slate-100">
+                <p class="text-[10px] font-black text-flowly-midnight uppercase tracking-widest mb-2">Módulos Ativos</p>
+                <div id="nc_modules_container" class="grid grid-cols-2 gap-2 mt-4"></div>
+            </div>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+            <button onclick="document.getElementById('modalNewClient').classList.add('hidden')"
+                class="flex-1 py-4 rounded-xl font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition">Cancelar</button>
+            <button onclick="createClient()"
+                class="flex-[2] py-4 rounded-xl font-black text-white bg-flowly-primary shadow-lg hover:shadow-cyan-500/30 hover:scale-[1.02] transition-all">CRIAR
+                CLIENTE</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: EDITAR CLIENTE SAAS -->
+<div id="modalEditClient" class="hidden fixed inset-0 z-[5000] bg-white dark:bg-slate-800 flex-col animate-slide-up">
+    <div
+        class="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-slate-800 sticky top-0 z-10">
+        <div>
+            <h3 class="font-black text-xl text-flowly-midnight dark:text-slate-50">Editar Cliente</h3>
+            <p class="text-xs text-slate-400">Ajustar módulos, descontos e ofertas.</p>
+        </div>
+        <button onclick="document.getElementById('modalEditClient').classList.add('hidden')"
+            class="p-2 bg-slate-50 dark:bg-slate-700 rounded-full hover:bg-slate-100 dark:hover:bg-slate-600 transition"><i
+                data-lucide="x" class="w-6 h-6 text-slate-600 dark:text-slate-300"></i></button>
+    </div>
+    <div class="p-6 pb-8 space-y-4 max-h-[90vh] overflow-y-auto">
+        <input type="hidden" id="ec_email_orig">
+        <div class="space-y-1">
+            <p class="text-[10px] font-black text-slate-400 uppercase ml-2">Nome Empresa</p><input id="ec_name"
+                class="w-full bg-white dark:bg-slate-800 p-4 rounded-2xl font-bold text-sm outline-none border border-flowly-border dark:border-slate-600 text-flowly-midnight dark:text-slate-50">
+        </div>
+        <div class="space-y-1">
+            <p class="text-[10px] font-black text-slate-400 uppercase ml-2">Plano</p>
+            <select id="ec_plan"
+                class="w-full bg-white dark:bg-slate-800 p-4 rounded-2xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary text-flowly-midnight dark:text-slate-50"
+                onchange="updateEcValorFinal()">
+                <!-- Opções preenchidas dinamicamente em openEditClient -->
+            </select>
+        </div>
+        <div class="space-y-1">
+            <p class="text-[10px] font-black text-slate-400 uppercase ml-2">Estado da Conta</p>
+            <select id="ec_status"
+                class="w-full bg-white dark:bg-slate-800 p-4 rounded-2xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary text-flowly-midnight dark:text-slate-50">
+                <option value="Ativo">Ativo</option>
+                <option value="Bloqueado">Bloqueado</option>
+                <option value="Arquivado">Arquivado / Histórico</option>
+            </select>
+        </div>
+        <div class="space-y-3 pt-4 border-t border-slate-50 dark:border-slate-700">
+            <p class="text-[10px] font-black text-flowly-midnight dark:text-slate-50 uppercase tracking-widest">Desconto
+                Comercial</p>
+            <div class="flex items-center gap-4">
+                <input type="range" id="ec_desconto" min="0" max="100" value="0" class="flex-1 accent-flowly-primary"
+                    oninput="updateEcValorFinal()">
+                <span id="ec_desconto_val" class="text-sm font-black text-flowly-primary w-12">0%</span>
+            </div>
+            <label
+                class="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-600">
+                <input type="checkbox" id="checkDescontoPermanente" class="accent-flowly-primary">
+                <span class="text-xs font-bold text-flowly-midnight dark:text-slate-50">Desconto Permanente</span>
+            </label>
+            <div class="space-y-1">
+                <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Válido até</label>
+                <input type="date" id="inputDescontoValidade"
+                    class="w-full bg-white dark:bg-slate-800 p-4 rounded-2xl font-bold text-sm outline-none border border-flowly-border dark:border-slate-600 text-flowly-midnight dark:text-slate-50">
+            </div>
+        </div>
+        <div class="space-y-1">
+            <p class="text-[10px] font-black text-slate-400 uppercase ml-2">Oferta de Mensalidade</p>
+            <input id="ec_mensalidades_oferta" type="number" min="0"
+                class="w-full bg-white dark:bg-slate-800 p-4 rounded-2xl font-bold text-sm outline-none border border-flowly-border dark:border-slate-600 text-flowly-midnight dark:text-slate-50"
+                placeholder="0" oninput="updateEcValorFinal()">
+            <p class="text-[9px] text-slate-400 mt-1">Nº de meses que o cliente não paga avença (crédito).</p>
+        </div>
+        <div class="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-600">
+            <p class="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Cálculo</p>
+            <p class="text-xs text-slate-600 dark:text-slate-300">Valor Final = Avença × (1 − Desconto/100)</p>
+            <p class="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-2">Valor Final Mensal: <span
+                    id="ec_valor_final">--€</span></p>
+            <p id="ec_custo_prox" class="text-xs text-flowly-warning dark:text-amber-400 mt-1 hidden">Se Oferta &gt; 0, Custo
+                Próximo Mês = 0€</p>
+        </div>
+        <div class="space-y-1">
+            <p class="text-[10px] font-black text-slate-400 uppercase ml-2">Créditos IA (Exceção/Override)</p>
+            <input type="number" id="ec_aiCredits" name="aiCredits"
+                class="w-full bg-white dark:bg-slate-800 p-4 rounded-2xl font-bold text-sm outline-none border border-flowly-border dark:border-slate-600 text-flowly-midnight dark:text-slate-50"
+                placeholder="Deixe vazio para usar o limite do Plano." min="0">
+        </div>
+        <div class="space-y-3 pt-4 border-t border-slate-50 dark:border-slate-700">
+            <p class="text-[10px] font-black text-flowly-midnight dark:text-slate-50 uppercase tracking-widest">Módulos
+                Ativos</p>
+            <div id="ec_modules_container" class="grid grid-cols-2 gap-2 mt-4"></div>
+        </div>
+        <button onclick="saveClientChanges()"
+            class="w-full bg-flowly-midnight text-white py-4 rounded-[2rem] font-black uppercase text-xs shadow-xl mt-4">Guardar
+            Alterações</button>
+    </div>
+</div>

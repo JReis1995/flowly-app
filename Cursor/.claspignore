@@ -1,8 +1,0 @@
-**/**
-!**/*.js
-!**/*.gs
-!**/*.html
-!appsscript.json
-.clasp.json
-node_modules/**
-.git/**
