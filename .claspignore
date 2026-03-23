@@ -1,8 +1,60 @@
-﻿**/**
-!Code.gs
-!appsscript.json
-!*.html
-!*.js
-!*.css
-.git/
-node_modules/
+﻿[master (root-commit) 590dc64] Estrutura inicial com filtros**/** !Code.gs !appsscript.json !*.html !*.js !*.css .git/ node_modules/
+ 58 files changed, 32529 insertions(+)
+ create mode 100644 .claspignore
+ create mode 100644 .gitignore
+ create mode 100644 Cursor/.claspignore
+ create mode 100644 Cursor/.cursorrules
+ create mode 100644 Cursor/Index.html
+ create mode 100644 Cursor/JS_AI_Export.html
+ create mode 100644 Cursor/JS_Auth_Nav.html
+ create mode 100644 Cursor/JS_CC_Logistica.html
+ create mode 100644 Cursor/JS_Condominios_Vasilhame.html
+ create mode 100644 Cursor/JS_Dashboard.html
+ create mode 100644 Cursor/JS_Fichas_Tecnicas.html
+ create mode 100644 Cursor/JS_Frota.html
+ create mode 100644 Cursor/JS_Globals.html
+ create mode 100644 Cursor/JS_RH_CRM.html
+ create mode 100644 Cursor/JS_SaaS_Admin.html
+ create mode 100644 Cursor/MOD_AI.js
+ create mode 100644 Cursor/MOD_Admin.js
+ create mode 100644 Cursor/MOD_CC_Dashboard.js
+ create mode 100644 Cursor/MOD_CRM_Export.js
+ create mode 100644 Cursor/MOD_Condominios.js
+ create mode 100644 Cursor/MOD_Fichas_Tecnicas.js
+ create mode 100644 Cursor/MOD_Frota.js
+ create mode 100644 Cursor/MOD_Logistica.js
+ create mode 100644 Cursor/MOD_RH.js
+ create mode 100644 Cursor/MOD_SaaS.js
+ create mode 100644 Cursor/SYS_Core.js
+ create mode 100644 Cursor/SYS_DevTools.js
+ create mode 100644 Cursor/SYS_Router.js
+ create mode 100644 Cursor/SYS_Utils.js
+ create mode 100644 Cursor/Style.html
+ create mode 100644 Cursor/UI_AI_Export.html
+ create mode 100644 Cursor/UI_Base.html
+ create mode 100644 Cursor/UI_CC_Logistica.html
+ create mode 100644 Cursor/UI_Dashboard.html
+ create mode 100644 Cursor/UI_Fichas_Tecnicas.html
+ create mode 100644 Cursor/UI_Frota_Condominios.html
+ create mode 100644 Cursor/UI_RH_CRM.html
+ create mode 100644 Cursor/UI_SaaS_Admin.html
+ create mode 100644 Cursor/appsscript.json
+ create mode 100644 Cursor/fix_encoding.py
+ create mode 100644 Cursor/replace.py
+ create mode 100644 Cursor/replace_all.py
+ create mode 100644 Site/.gitignore
+ create mode 100644 Site/Fichas_Tecnicas.js
+ create mode 100644 Site/JS_API.js
+ create mode 100644 Site/JS_Auth_Nav.js
+ create mode 100644 Site/JS_CC_Logistica.js
+ create mode 100644 Site/JS_Condominios.js
+ create mode 100644 Site/JS_Dashboard.js
+ create mode 100644 Site/JS_Frota.js
+ create mode 100644 Site/JS_Globals.js
+ create mode 100644 Site/JS_RH_CRM.js
+ create mode 100644 Site/JS_SaaS_Admin.js
+ create mode 100644 Site/_redirects.txt
+ create mode 100644 Site/app.html
+ create mode 100644 Site/js_ai_export.js
+ create mode 100644 Site/shim.js
+ create mode 100644 Site/style.css
