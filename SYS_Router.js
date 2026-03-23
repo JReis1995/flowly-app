@@ -20,7 +20,7 @@ function doGet(e) {
   }
 
   // 2. PREPARAÇÃO DO TEMPLATE INDEX.HTML
-  const template = HtmlService.createTemplateFromFile('Index');
+  const template = HtmlService.createTemplateFromFile('Template');
   
   // Inicialização segura de variáveis de template (evita erros de "is not defined")
   template.setupToken = "";
