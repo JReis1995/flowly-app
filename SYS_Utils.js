@@ -231,7 +231,7 @@ function _buildStandardEmailHTML(subjectTitle, innerBody) {
         <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08); max-width: 100%;">
           <tr>
             <td style="background:#020617;padding:36px 40px;text-align:center;">
-              <a href="https://www.flowly.pt" target="_blank">
+              <a href="https://flowly.pt" target="_blank">
                 <img src="cid:flowlyLogo" alt="Flowly 360" width="80" style="border-radius:16px;border:3px solid rgba(255,255,255,0.15);display:block;margin:0 auto 16px;">
               </a>
               <h1 style="color:#ffffff;font-size:22px;font-weight:800;margin:0;letter-spacing:-0.5px;">${subjectTitle}</h1>
@@ -252,7 +252,7 @@ function _buildStandardEmailHTML(subjectTitle, innerBody) {
               <p style="color:#020617;font-size:13px;font-weight:700;margin:4px 0 0;"><strong>A Equipa Flowly 360</strong></p>
               <p style="color:#64748B;font-size:12px;margin:8px 0 0;line-height:1.6;">
                 <a href="mailto:geral@flowly.pt" style="color:#10B981;font-weight:600;">geral@flowly.pt</a><br>
-                www.flowly.pt<br>
+                flowly.pt<br>
                 +351 927140717
               </p>
               <p style="color:#94A3B8;font-size:11px;margin:16px 0 0;font-style:italic;">Onde o fluxo encontra a precisão</p>

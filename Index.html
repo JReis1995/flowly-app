@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Permissions-Policy" content="interest-cohort=(), microphone=(), camera=(), magnetometer=(), gyroscope=(), accelerometer=(), usb=()">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: 'unsafe-inline' 'unsafe-eval'; font-src 'self' https: data:; img-src 'self' https: data:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https: 'unsafe-inline' 'unsafe-eval'; style-src 'self' https: 'unsafe-inline'; font-src 'self' https: data:; img-src 'self' https: data:; frame-src 'self' https://www.flowly.pt https://flowly.pt;">
     <title>Flowly 360 Pro</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -4947,6 +4947,21 @@
     <!-- Scripts da AplicaÃ§Ã£o (LÃ³gica) -->
     <script>
     // ==========================================
+    // CONFIGURAÃ‡ÃƒO DE BASE DE URL (NORMALIZAÃ‡ÃƒO)
+    // ==========================================
+
+    // Definir a base URL canÃ³nica para evitar conflitos entre www.flowly.pt e flowly.pt
+    window.FLOWLY_BASE_URL = 'https://flowly.pt';
+    window.FLOWLY_BASE_DOMAIN = 'flowly.pt';
+
+    // FunÃ§Ã£o helper para normalizar URLs
+    function normalizeUrl(url) {
+        if (!url) return '';
+        // Remover www. se presente e garantir HTTPS
+        return url.replace(/^https?:\/\/(www\.)?/i, 'https://');
+    }
+
+    // ==========================================
     // 0. UTILITÃRIOS DE PERFORMANCE E GERAIS
     // ==========================================
 
@@ -5418,58 +5433,62 @@
     }
 
     window.onload = () => {
-        const savedTheme = localStorage.getItem('flowly_theme');
-        if (savedTheme) document.body.dataset.theme = savedTheme;
+        // Aguardar 500ms para garantir que vendor.js registou os listeners
+        setTimeout(() => {
+            const savedTheme = localStorage.getItem('flowly_theme');
+            if (savedTheme) document.body.dataset.theme = savedTheme;
 
-        if (window._paymentSuccess && window._creditsAdded > 0) {
-            if (typeof confetti === 'function') {
-                confetti({
-                    particleCount: 150,
-                    spread: 70,
-                    origin: { y: 0.6 },
-                    colors: ['#06B6D4', '#10B981', '#020617']
-                });
+            if (window._paymentSuccess && window._creditsAdded > 0) {
+                if (typeof confetti === 'function') {
+                    confetti({
+                        particleCount: 150,
+                        spread: 70,
+                        origin: { y: 0.6 },
+                        colors: ['#06B6D4', '#10B981', '#020617']
+                    });
+                }
+                notify('Pagamento Confirmado! +' + window._creditsAdded + ' crÃ©ditos adicionados.', 'success');
+                if (typeof fetchCredits === 'function') fetchCredits();
+                window._paymentSuccess = false;
+                window._creditsAdded = 0;
             }
-            notify('Pagamento Confirmado! +' + window._creditsAdded + ' crÃ©ditos adicionados.', 'success');
-            if (typeof fetchCredits === 'function') fetchCredits();
-            window._paymentSuccess = false;
-            window._creditsAdded = 0;
-        }
 
-        const setupToken = document.body.dataset.setupToken || '';
-        const actionSetPassword = document.body.dataset.actionSetPassword === 'true';
-        const setPasswordToken = document.body.dataset.setPasswordToken || '';
+            const setupToken = document.body.dataset.setupToken || '';
+            const actionSetPassword = document.body.dataset.actionSetPassword === 'true';
+            const setPasswordToken = document.body.dataset.setPasswordToken || '';
 
-        if (actionSetPassword && setPasswordToken) {
-            document.getElementById('authOverlay').classList.add('hidden');
-            document.getElementById('viewSetTeamPassword').classList.remove('hidden');
-            document.getElementById('setTeamPasswordToken').value = setPasswordToken;
-        } else if (setupToken) {
-            document.getElementById('authOverlay').classList.add('hidden');
-            document.getElementById('viewSetupPassword').classList.remove('hidden');
-            document.getElementById('viewSetupPassword').dataset.token = setupToken;
-        } else if (localStorage.getItem('flowly_user')) {
-            initApp();
-        }
-
-        if (window.lucide) lucide.createIcons();
-
-        // Fix mobile paste: inputmode="text" + user-select nos campos de senha
-        ['#l_pass', '#setupPassword', '#setupPassword2', '#r_pass', '#r_pass2', '#profilePassword'].forEach(sel => {
-            const el = document.querySelector(sel);
-            if (el) {
-                el.setAttribute('inputmode', 'text');
-                el.style.setProperty('-webkit-user-select', 'text', 'important');
-                el.style.setProperty('user-select', 'text', 'important');
-                el.removeAttribute('onpaste');
-                el.addEventListener('paste', function () { /* permitir comportamento nativo */ }, true);
+            if (actionSetPassword && setPasswordToken) {
+                document.getElementById('authOverlay').classList.add('hidden');
+                document.getElementById('viewSetTeamPassword').classList.remove('hidden');
+                document.getElementById('setTeamPasswordToken').value = setPasswordToken;
+            } else if (setupToken) {
+                document.getElementById('authOverlay').classList.add('hidden');
+                document.getElementById('viewSetupPassword').classList.remove('hidden');
+                document.getElementById('viewSetupPassword').dataset.token = setupToken;
+            } else if (localStorage.getItem('flowly_user')) {
+                initApp();
             }
-        });
+
+            if (window.lucide) lucide.createIcons();
+
+            // Fix mobile paste: inputmode="text" + user-select nos campos de senha
+            ['#l_pass', '#setupPassword', '#setupPassword2', '#r_pass', '#r_pass2', '#profilePassword'].forEach(sel => {
+                const el = document.querySelector(sel);
+                if (el) {
+                    el.setAttribute('inputmode', 'text');
+                    el.style.setProperty('-webkit-user-select', 'text', 'important');
+                    el.style.setProperty('user-select', 'text', 'important');
+                    el.removeAttribute('onpaste');
+                    el.addEventListener('paste', function () { /* permitir comportamento nativo */ }, true);
+                }
+            });
+        }, 500); // 500ms delay para vendor.js
     };
 
     // ==========================================
     // 5. HELPERS DE PARSING IA E LIMPEZA
     // ==========================================
+
     function getText(obj, path) {
         if (!obj || !path) return '';
         var parts = String(path).split('.');

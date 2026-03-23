@@ -1380,7 +1380,7 @@ function _buildEmailCobrancaHtml(nomeEmpresa, valorStr, stripeLink) {
   if (payUrl) {
     btnHtml = '<p style="text-align:center;margin:24px 0;"><a href="' + payUrl.replace(/"/g, "&quot;") + '" style="display:inline-block;background:#06B6D4;color:#FFFFFF;padding:16px 32px;border-radius:8px;font-weight:bold;font-size:16px;text-decoration:none;">Pagar Agora via Stripe</a></p>';
   } else {
-    btnHtml = '<p style="text-align:center;margin:24px 0;"><a href="https://www.flowly.pt" style="display:inline-block;background:#06B6D4;color:#FFFFFF;padding:16px 32px;border-radius:8px;font-weight:bold;font-size:16px;text-decoration:none;">Pagar Agora</a></p>';
+    btnHtml = '<p style="text-align:center;margin:24px 0;"><a href="https://flowly.pt" style="display:inline-block;background:#06B6D4;color:#FFFFFF;padding:16px 32px;border-radius:8px;font-weight:bold;font-size:16px;text-decoration:none;">Pagar Agora</a></p>';
   }
   
   var innerBody = '<p style="font-size:14px;color:#334155;line-height:1.6;">Exmo(a) Sr(a) <strong>' + (nomeEmpresa || "Cliente").replace(/</g, "&lt;").replace(/>/g, "&gt;") + '</strong>,</p>' +
