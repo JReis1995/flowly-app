@@ -1,0 +1,785 @@
+<script>
+    // ==========================================
+    // 0. UTILITÁRIOS DE PERFORMANCE E GERAIS
+    // ==========================================
+
+    /** Debounce: atrasa execução de fn por `delay` ms após última chamada */
+    function debounce(fn, delay) {
+        let timer;
+        return function (...args) {
+            clearTimeout(timer);
+            timer = setTimeout(() => fn.apply(this, args), delay);
+        };
+    }
+
+    /** 
+     * Smart Currency Parser: Substitui parsePTFloat.
+     * Remove todos os caracteres exceto números, vírgulas e pontos.
+     * Deteta se o ponto/vírgula é separador de milhar ou decimal.
+     */
+    function standardizeNumeric(val, forUI = false) {
+        if (forUI) {
+            let n = parseFloat(String(val).replace(/\s/g, '').replace(',', '.')) || 0;
+            return n.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        return parseFloat(String(val).replace(/\s/g, '').replace(',', '.')) || 0;
+    }
+
+    /** Algoritmo Módulo 11 para NIF */
+    function calcularCheckDigitNIF(nif8) {
+        let s = String(nif8).padStart(8, '0');
+        let soma = (parseInt(s[0])*9 + parseInt(s[1])*8 + parseInt(s[2])*7 + parseInt(s[3])*6 + parseInt(s[4])*5 + parseInt(s[5])*4 + parseInt(s[6])*3 + parseInt(s[7])*2);
+        let resto = soma % 11;
+        let nif9 = (resto < 2) ? 0 : 11 - resto;
+        return s + nif9;
+    }
+
+    /** Validação de NIF (Algoritmo Módulo 11) */
+    function validateNIF(nif) {
+        if (!nif) return false;
+        let s = String(nif).replace(/\D/g, "");
+        if (s.length !== 9) return false;
+        const sum = (s[0]*9 + s[1]*8 + s[2]*7 + s[3]*6 + s[4]*5 + s[5]*4 + s[6]*3 + s[7]*2);
+        const res = sum % 11;
+        const checkDigit = (res < 2) ? 0 : 11 - res;
+        return checkDigit === parseInt(s[8], 10);
+    }
+
+    /** Parser legado (mantido para compatibilidade temporária se necessário) */
+    function parsePTFloat(val) { return standardizeNumeric(val); }
+
+    /** Utilitário de formatação de datas */
+    function parsePTDate(dateStr) {
+        if (!dateStr) return new Date();
+        if (dateStr instanceof Date) return dateStr;
+        const parts = String(dateStr).split('/');
+        if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
+        return new Date(dateStr);
+    }
+
+    /** Calcula dias úteis (segunda a sexta) num determinado mês */
+    function getWorkingDaysInMonth(month, year) {
+        let count = 0;
+        const daysInMonth = new Date(year, month, 0).getDate();
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dayOfWeek = new Date(year, month - 1, d).getDay();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) count++;
+        }
+        return count;
+    }
+
+    function dateInputToPT(val) {
+        if (!val) return '';
+        const parts = String(val).split('-');
+        if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+        return val;
+    }
+
+    /** Cache local de dados por view para evitar re-chamadas desnecessárias */
+    window._viewCache = window._viewCache || {};
+    function invalidateViewCache(view) { delete window._viewCache[view]; }
+    function hasViewCache(view) { return !!window._viewCache[view]; }
+    function setViewCache(view, data) { window._viewCache[view] = data; }
+    function getViewCache(view) { return window._viewCache[view]; }
+
+
+    // ==========================================
+    // 1. ESTADO GLOBAL & CACHES
+    // ==========================================
+
+    window.currentUser = window.currentUser || null;
+    window.currentImpersonate = window.currentImpersonate || null;
+    // 'client' = mostrar apenas módulos do plano do cliente | 'full' = visão total sem restrições
+    let impersonateMode = 'client';
+
+    let clientsCache = [];
+    var plansCache = plansCache || [];
+    var aiPacksCache = aiPacksCache || [];
+    let staffCache = [];
+    let usersCache = [];
+    let cachedVeiculos = [];
+    let frotaVeiculosCache = null;
+
+    let currentCcTab = 'Aberto';
+    let currentCcFlow = 'Entradas';
+    
+    let _currentPromptDl = null;
+    let _currentPromptInput = null;
+
+    /**
+     * Retorna o contexto de email a enviar ao backend.
+     * Em impersonate → email do cliente impersonado.
+     * Em sessão normal → email do utilizador logado.
+     */
+    function _ctxEmail() {
+        return currentImpersonate || (currentUser && currentUser.email) || null;
+    }
+
+    /** Chave de cache de IA indexada por email (Zero Leak Policy) */
+    function _aiCacheKey() {
+        return 'flowly_ai_cache_' + (_ctxEmail() || 'anon');
+    }
+
+
+    // ==========================================
+    // 2. SISTEMA GLOBAL DE NOTIFICAÇÕES E MODAIS
+    // ==========================================
+
+    const notify = (msg, type = 'info') => {
+        const box = document.getElementById('toastContainer');
+        if (!box) return;
+        const el = document.createElement('div');
+        const styles = { success: 'bg-[#10B981] text-white shadow-xl', error: 'bg-rose-600 text-white shadow-xl', info: 'bg-flowly-midnight text-white shadow-xl', warning: 'bg-flowly-warning/100 text-white shadow-xl' };
+        const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-octagon' : 'info');
+        el.className = `flex items-center gap-4 p-5 rounded-[2rem] animate-slide-up mb-3 border border-white/10 transition-all ${styles[type] || styles.info}`;
+        el.innerHTML = `<i data-lucide="${icon}" class="w-6 h-6"></i><div class="flex flex-col"><p class="text-[9px] font-black uppercase opacity-60 tracking-[0.2em] leading-none">Flowly System</p><p class="text-xs font-bold mt-1.5 leading-tight">${msg}</p></div>`;
+        box.appendChild(el);
+        if (window.lucide) lucide.createIcons();
+        setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateY(-20px)'; setTimeout(() => el.remove(), 400); }, 5000);
+    };
+
+    function showConfirm(msg, callback) {
+        const modalConfirm = document.getElementById('modalConfirm');
+        const modalConfirmMsg = document.getElementById('modalConfirmMsg');
+        const modalConfirmOk = document.getElementById('modalConfirmOk');
+
+        if (!modalConfirm || !modalConfirmMsg || !modalConfirmOk) return;
+
+        modalConfirmMsg.textContent = msg;
+
+        const newOkBtn = modalConfirmOk.cloneNode(true);
+        modalConfirmOk.parentNode.replaceChild(newOkBtn, modalConfirmOk);
+
+        newOkBtn.addEventListener('click', function() {
+            if (typeof callback === 'function') callback();
+            modalConfirm.classList.add('hidden');
+        });
+
+        modalConfirm.classList.remove('hidden');
+    }
+
+    function showPrompt(title, datalistId, targetInputId) {
+        _currentPromptDl = datalistId;
+        _currentPromptInput = targetInputId;
+
+        const titleEl = document.getElementById('customPromptTitle');
+        if (titleEl) titleEl.innerText = title;
+
+        const inputEl = document.getElementById('customPromptInput');
+        if (inputEl) inputEl.value = '';
+
+        const modal = document.getElementById('customPromptModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            if (inputEl) {
+                setTimeout(() => inputEl.focus(), 50);
+            }
+        }
+    }
+
+    function _cancelCustomPrompt() {
+        const modal = document.getElementById('customPromptModal');
+        if (modal) modal.classList.add('hidden');
+        _currentPromptDl = null;
+        _currentPromptInput = null;
+        
+        const inputEl = document.getElementById('customPromptInput');
+        if (inputEl) inputEl.value = '';
+    }
+
+    function _confirmCustomPrompt() {
+        const inputEl = document.getElementById('customPromptInput');
+        if (!inputEl) return;
+
+        const val = inputEl.value.trim();
+        if (val && _currentPromptDl && _currentPromptInput) {
+            const dl = document.getElementById(_currentPromptDl);
+            if (dl && !Array.from(dl.options).some(opt => opt.value === val)) {
+                const opt = document.createElement('option');
+                opt.value = val;
+                dl.appendChild(opt);
+            }
+
+            const targetInput = document.getElementById(_currentPromptInput);
+            if (targetInput) {
+                targetInput.value = val;
+                targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                targetInput.dispatchEvent(new Event('blur', { bubbles: true }));
+            }
+        }
+
+        _cancelCustomPrompt();
+    }
+
+
+    // ==========================================
+    // 3. FUNCIONALIDADES & PERMISSÕES
+    // ==========================================
+
+    const APP_FEATURES_REGISTRY = [
+        { id: 'dashboard', label: 'Dashboard Base', type: 'tab' },
+        { id: 'rh', label: 'Recursos Humanos (Módulo)', type: 'tab' },
+        { id: 'cc', label: 'Tesouraria', type: 'tab' },
+        { id: 'logistica', label: 'Logística', type: 'tab' },
+        { id: 'ia', label: 'IA Insight', type: 'tab' },
+        { id: 'admin', label: 'Gestão de Acessos', type: 'tab' },
+        { id: 'exportacao', label: 'Importação & Exportação', type: 'tab' },
+        { id: 'fleet', label: 'Gestão de Frota', type: 'tab' },
+        { id: 'crm', label: 'CRM Clientes', type: 'tab' },
+        { id: 'condominios', label: 'Gestão de Condomínios', type: 'tab' },
+        { id: 'fichas_tecnicas', label: 'Fichas Técnicas', type: 'tab' },
+        { id: 'ft_ver_custos', label: 'FT: Ver Custos e Margens', type: 'component' },
+        { id: 'dashRH', label: 'Dashboard: Resumo RH', type: 'component', targetIds: ['tRH', 'dRH'] },
+        { id: 'dashFinanceiro', label: 'Dashboard: Resumo Financeiro', type: 'component', targetIds: ['tFin', 'dFin'] },
+        { id: 'dashStocks', label: 'Dashboard: Resumo Stocks', type: 'component', targetIds: ['tStock', 'dStock'] },
+        { id: 'dashFrota', label: 'Dashboard: Gestão de Frota', type: 'component', targetIds: ['tFrota', 'dFrota'] },
+        { id: 'caixaLivre', label: 'KPI - Caixa Livre', type: 'component', targetId: 'cardCaixaLivre' },
+        { id: 'gastarCreditos', label: 'Gastar créditos IA (Atualizar Financeiro/RH/Stocks)', type: 'component' }
+    ];
+
+    function renderFeatures(containerId, permissionsObj, featuresList) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '';
+        const perms = permissionsObj || {};
+        const features = featuresList || APP_FEATURES_REGISTRY;
+        
+        features.forEach(function (f) {
+            const label = document.createElement('label');
+            label.className = 'flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer border border-slate-100 dark:border-slate-700';
+            if (f.type === 'component') {
+                label.classList.add('pl-6', 'border-l-2', 'border-l-flowly-primary/30');
+            }
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.className = 'w-5 h-5 accent-flowly-primary rounded';
+            cb.dataset.featureId = f.id;
+            cb.checked = !!perms[f.id];
+            const span = document.createElement('span');
+            span.className = 'text-sm font-bold text-flowly-midnight dark:text-slate-50';
+            if (f.type === 'component') span.classList.add('italic', 'text-slate-600', 'dark:text-slate-400');
+            span.textContent = f.label;
+            label.appendChild(span);
+            label.appendChild(cb);
+            container.appendChild(label);
+        });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function renderAdminFeatures(containerId, permissionsObj) {
+        renderFeatures(containerId, permissionsObj, APP_FEATURES_REGISTRY);
+    }
+
+    function renderColabFeatures(containerId, permissionsObj, clientConfigOverride) {
+        var cfg = clientConfigOverride || (window._clientConfig || {}) || (currentUser && (currentUser._impersonatedPlanConfig || currentUser.planConfig)) || {};
+        var isSA = (currentUser && currentUser.role === 'SuperAdmin');
+        
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '';
+        const perms = permissionsObj || {};
+        
+        APP_FEATURES_REGISTRY.forEach(function (f) {
+            var isAllowed = true;
+            if (!isSA) {
+                if (f.id === 'admin') isAllowed = (cfg.admin !== false && cfg.access !== false);
+                else isAllowed = (cfg[f.id] !== false);
+            }
+
+            const label = document.createElement('label');
+            label.className = 'flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700';
+            if (f.type === 'component') {
+                label.classList.add('pl-6', 'border-l-2', 'border-l-flowly-primary/30');
+            }
+            if (!isAllowed) {
+                label.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                label.classList.add('cursor-pointer');
+            }
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.className = 'w-5 h-5 accent-flowly-primary rounded ' + (isAllowed ? 'cursor-pointer' : 'cursor-not-allowed');
+            cb.dataset.featureId = f.id;
+            cb.checked = !!perms[f.id];
+            if (!isAllowed) cb.disabled = true;
+
+            const span = document.createElement('span');
+            span.className = 'text-sm font-bold ' + (isAllowed ? 'text-flowly-midnight dark:text-slate-50' : 'text-slate-500 line-through');
+            if (f.type === 'component') span.classList.add('italic');
+            span.textContent = f.label + (isAllowed ? '' : ' (Não incluído no plano)');
+
+            label.appendChild(span);
+            label.appendChild(cb);
+            container.appendChild(label);
+        });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function collectPermissionsFromContainer(containerId) {
+        var perms = {};
+        APP_FEATURES_REGISTRY.forEach(function(f) {
+            perms[f.id] = false;
+        });
+        var container = document.getElementById(containerId);
+        if (!container) return perms;
+        container.querySelectorAll('input[type="checkbox"][data-feature-id]').forEach(function (cb) {
+            perms[cb.dataset.featureId] = !!cb.checked;
+        });
+        return perms;
+    }
+
+    function checkUnmappedItems() {
+        const card = document.getElementById('btnModExportacao');
+        if (!card) return;
+        const existingBadge = card.querySelector('.export-unmapped-badge');
+        if (existingBadge) existingBadge.remove();
+        google.script.run
+            .withFailureHandler(() => { })
+            .withSuccessHandler(function (res) {
+                if (res && res.count > 0) {
+                    const badge = document.createElement('span');
+                    badge.className = 'export-unmapped-badge absolute -top-2 -right-2 bg-flowly-danger text-white text-xs font-bold px-2 py-1 rounded-full shadow-md';
+                    badge.textContent = res.count + ' Pendentes';
+                    card.appendChild(badge);
+                }
+            }).getUnmappedItems(_ctxEmail());
+    }
+
+    // ==========================================
+    // 4. INICIALIZAÇÃO DA APLICAÇÃO
+    // ==========================================
+
+    function acceptPrivacy() {
+        localStorage.setItem('flowly_privacy_accepted', JSON.stringify({ ts: Date.now(), version: '1.0' }));
+        document.getElementById('modalPrivacy').classList.add('hidden');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function checkPrivacyConsent() {
+        const accepted = localStorage.getItem('flowly_privacy_accepted');
+        // Renovar consentimento a cada 365 dias
+        if (!accepted) return false;
+        try {
+            const data = JSON.parse(accepted);
+            const yearMs = 365 * 24 * 60 * 60 * 1000;
+            return (Date.now() - data.ts) < yearMs;
+        } catch (e) { return false; }
+    }
+
+    function initApp() {
+        try { localStorage.removeItem('flowly_ai_cache'); } catch (e) { }
+        const saved = localStorage.getItem('flowly_user');
+        if (saved && !currentUser) {
+            const parsed = JSON.parse(saved);
+            // TTL de 8 horas — forçar novo login por segurança (RGPD)
+            const eightHours = 8 * 60 * 60 * 1000;
+            if (parsed.loginTimestamp && (Date.now() - parsed.loginTimestamp) > eightHours) {
+                localStorage.removeItem('flowly_user');
+                notify("Sessão expirada. Por favor inicie sessão novamente.", "warning");
+                return;
+            }
+            currentUser = parsed;
+        }
+        if (!currentUser) return;
+
+        if (currentUser.role !== 'SuperAdmin') currentImpersonate = null;
+
+        document.getElementById('authOverlay').classList.add('hidden');
+        document.getElementById('appContent').classList.remove('hidden');
+
+        if (typeof initDescontoValidadeListeners === 'function') initDescontoValidadeListeners();
+        if (typeof initCrmFormMasks === 'function') initCrmFormMasks();
+
+        // RGPD: mostrar modal de consentimento de privacidade se ainda não foi aceite (exceto SA)
+        if (currentUser.role !== 'SuperAdmin' && !checkPrivacyConsent()) {
+            document.getElementById('modalPrivacy').classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        document.getElementById('userNameDisplay').innerText = currentUser.name;
+
+        if (typeof fetchCredits === 'function') fetchCredits();
+
+        // Persistência do toggle Auto-Análise: carregar preferência guardada por email (UserProperties)
+        google.script.run.withSuccessHandler(function (val) {
+            var t = document.getElementById('aiAutoToggle');
+            var lbl = document.getElementById('aiAutoToggleLabel');
+            if (t) t.checked = (val !== false && val !== '0');
+            if (lbl) lbl.textContent = (t && t.checked) ? 'Automático' : 'Manual';
+        }).withFailureHandler(function () { }).getAIAutoPreference(_ctxEmail());
+
+        // SEGURANÇA CRÍTICA: Central SaaS visível APENAS para o Super Admin real e fora do modo "Visão Cliente"
+        const isSA = (currentUser.email.toLowerCase() === 'josereis1995@gmail.com') || (currentUser.role === 'FlowlyTeam');
+        const isSuperAdminOnly = (currentUser.email.toLowerCase() === 'josereis1995@gmail.com');
+        const isClientView = currentImpersonate && impersonateMode === 'client';
+        const btnC = document.getElementById('btnCentral');
+
+        if (btnC) {
+            if (isSA && !isClientView) btnC.classList.remove('hidden');
+            else btnC.classList.add('hidden');
+        }
+
+        // Mostrar dropdown de visão apenas para SuperAdmin (não para FlowlyTeam)
+        const dropWrap = document.getElementById('impersonateDropdownWrap');
+        if (dropWrap) {
+            if (isSuperAdminOnly) {
+                dropWrap.classList.remove('hidden');
+                if (typeof updateImpersonateDropLabel === 'function') updateImpersonateDropLabel();
+            } else {
+                dropWrap.classList.add('hidden');
+            }
+        }
+
+        google.script.run
+            .withFailureHandler(err => { console.error('[Flowly] initApp getMasterData erro:', err); })
+            .withSuccessHandler(res => {
+                if (!res) return;
+                const dlCargo = document.getElementById('listaCargos');
+                if (dlCargo && res.cargos) { dlCargo.innerHTML = ''; res.cargos.forEach(c => dlCargo.innerHTML += `<option value="${c}">`); }
+
+                if (currentUser && res.users) {
+                    const me = res.users.find(u => u.email === currentUser.email);
+                    if (me && me.permissions) currentUser._userPermissions = me.permissions;
+                }
+
+                if (res.isImpersonating && res.planConfig) {
+                    if (currentUser) currentUser._impersonatedPlanConfig = res.planConfig;
+                    if (typeof applyAccessControl === 'function') applyAccessControl(res.planConfig);
+                } else if (res.planConfig) {
+                    if (typeof applyAccessControl === 'function') applyAccessControl(res.planConfig);
+                }
+
+                // Atualizar banner de modo se estiver a impersonar
+                if (currentImpersonate && typeof updateImpersonateModeBtns === 'function') updateImpersonateModeBtns();
+            }).getMasterData(_ctxEmail());
+
+        // Popular dropdown de clientes para SuperAdmin
+        if (isSA) {
+            google.script.run.withSuccessHandler(res => {
+                if (res && res.clients && typeof populateImpersonateDropdown === 'function') populateImpersonateDropdown(res.clients);
+            }).getSuperAdminDashboardData(_ctxEmail());
+        }
+
+        // Auditoria: Verificação de Integridade do Módulo de Fichas Técnicas
+        if (!window.ftModuleReady) {
+             console.error("[AUDITORIA] Módulo de Fichas Técnicas falhou a inicializar corretamente.");
+             if (typeof notify === 'function') notify("Erro severo identificado no carregamento do Módulo (Fichas Técnicas). Por favor recarregue a página.", "error");
+        }
+
+        if (typeof nav === 'function') nav('home');
+    }
+
+    window.onload = () => {
+        const savedTheme = localStorage.getItem('flowly_theme');
+        if (savedTheme) document.body.dataset.theme = savedTheme;
+
+        if (window._paymentSuccess && window._creditsAdded > 0) {
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#06B6D4', '#10B981', '#020617']
+                });
+            }
+            notify('Pagamento Confirmado! +' + window._creditsAdded + ' créditos adicionados.', 'success');
+            if (typeof fetchCredits === 'function') fetchCredits();
+            window._paymentSuccess = false;
+            window._creditsAdded = 0;
+        }
+
+        const setupToken = document.body.dataset.setupToken || '';
+        const actionSetPassword = document.body.dataset.actionSetPassword === 'true';
+        const setPasswordToken = document.body.dataset.setPasswordToken || '';
+
+        if (actionSetPassword && setPasswordToken) {
+            document.getElementById('authOverlay').classList.add('hidden');
+            document.getElementById('viewSetTeamPassword').classList.remove('hidden');
+            document.getElementById('setTeamPasswordToken').value = setPasswordToken;
+        } else if (setupToken) {
+            document.getElementById('authOverlay').classList.add('hidden');
+            document.getElementById('viewSetupPassword').classList.remove('hidden');
+            document.getElementById('viewSetupPassword').dataset.token = setupToken;
+        } else if (localStorage.getItem('flowly_user')) {
+            initApp();
+        }
+
+        if (window.lucide) lucide.createIcons();
+
+        // Fix mobile paste: inputmode="text" + user-select nos campos de senha
+        ['#l_pass', '#setupPassword', '#setupPassword2', '#r_pass', '#r_pass2', '#profilePassword'].forEach(sel => {
+            const el = document.querySelector(sel);
+            if (el) {
+                el.setAttribute('inputmode', 'text');
+                el.style.setProperty('-webkit-user-select', 'text', 'important');
+                el.style.setProperty('user-select', 'text', 'important');
+                el.removeAttribute('onpaste');
+                el.addEventListener('paste', function () { /* permitir comportamento nativo */ }, true);
+            }
+        });
+    };
+
+    // ==========================================
+    // 5. HELPERS DE PARSING IA E LIMPEZA
+    // ==========================================
+    function getText(obj, path) {
+        if (!obj || !path) return '';
+        var parts = String(path).split('.');
+        var cur = obj;
+        for (var i = 0; i < parts.length && cur != null; i++) cur = cur[parts[i]];
+        var s = (cur != null) ? String(cur).trim() : '';
+        if (s && (s.indexOf('{') >= 0 || s.indexOf('}') >= 0)) s = emergencyStripJson(s);
+        return s || '';
+    }
+
+    function safeParse(val) {
+        if (val == null) return '';
+        if (typeof val === 'string') {
+            var s = cleanAiMarkdown(val).trim();
+            if (!s) return '';
+            if (s.charAt(0) === '{' || s.charAt(0) === '[') {
+                try {
+                    var parsed = JSON.parse(s);
+                    if (parsed && typeof parsed === 'object') {
+                        if (parsed.summary && typeof parsed.summary === 'string') return safeParse(parsed.summary);
+                        if (parsed.text && typeof parsed.text === 'string') return safeParse(parsed.text);
+                        if (parsed.analysis && typeof parsed.analysis === 'string') return safeParse(parsed.analysis);
+                        if (parsed.resumo && typeof parsed.resumo === 'string') return safeParse(parsed.resumo);
+                        if (parsed.financeiro && parsed.financeiro.summary) return safeParse(parsed.financeiro.summary);
+                        if (parsed.stocks && parsed.stocks.summary) return safeParse(parsed.stocks.summary);
+                        if (parsed.rh && parsed.rh.summary) return safeParse(parsed.rh.summary);
+                        for (var k in parsed) { if (typeof parsed[k] === 'string' && parsed[k].length > 0 && parsed[k].charAt(0) !== '{') return safeParse(parsed[k]); }
+                    }
+                } catch (e) { }
+            }
+            return s.replace(/\{/g, '').replace(/\}/g, '').replace(/\s+/g, ' ').trim();
+        }
+        if (typeof val === 'object') {
+            if (val.summary && typeof val.summary === 'string') return safeParse(val.summary);
+            if (val.text && typeof val.text === 'string') return safeParse(val.text);
+            if (val.analysis && typeof val.analysis === 'string') return safeParse(val.analysis);
+            if (val.resumo && typeof val.resumo === 'string') return safeParse(val.resumo);
+            if (val.financeiro && val.financeiro.summary) return safeParse(val.financeiro.summary);
+            if (val.stocks && val.stocks.summary) return safeParse(val.stocks.summary);
+            if (val.rh && val.rh.summary) return safeParse(val.rh.summary);
+        }
+        return String(val || '').replace(/\{/g, '').replace(/\}/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    function cleanAiMarkdown(val) {
+        if (val == null) return '';
+        var s = String(val).trim();
+        if (!s) return '';
+        s = s.replace(/^```[\w]*\s*/i, '').replace(/\s*```$/i, '').trim();
+        s = s.replace(/```[\w]*\s*[\s\S]*?```/gi, '').trim();
+        return s;
+    }
+
+    function emergencyStripJson(text) {
+        if (!text || typeof text !== 'string') return '';
+        var s = String(text).trim();
+        if (s.indexOf('{') === -1 && s.indexOf('}') === -1 && s.indexOf('[') === -1) return s;
+        var prev = '';
+        while (prev !== s) {
+            prev = s;
+            s = s.replace(/\{[^{}]*\}/g, ' ');
+            s = s.replace(/\[[^[\]]*\]/g, ' ');
+        }
+        s = s.replace(/[{}[\]"]/g, ' ').replace(/\s+/g, ' ').trim();
+        return s || 'Sem análise disponível. Clique em Atualizar.';
+    }
+
+    function cleanSummary(raw) {
+        if (!raw) return '';
+        var s = cleanAiMarkdown(String(raw)).trim();
+        if (s.indexOf('{') >= 0 || s.indexOf('}') >= 0) s = emergencyStripJson(s);
+        s = s.replace(/^[,;\s]+/, '').replace(/[,;\s]+$/, '');
+        s = s.replace(/(?:^|[,;\s]+)(?:financeiro|stocks|rh|summary|todos|category)\s*[:\-]\s*/gi, ' ');
+        s = s.replace(/\s+/g, ' ').trim();
+        if (/^Resposta\s+(recebida\s+mas\s+)?em\s+formato\s+inesperado\.?$/i.test(s)) s = 'Insight indisponível.';
+        return s;
+    }
+
+    function cleanTodo(t) {
+        if (!t) return '';
+        var s = typeof t === 'string' ? cleanAiMarkdown(t) : String(t);
+        if (s.indexOf('{') >= 0 || s.indexOf('}') >= 0) s = emergencyStripJson(s);
+        s = (s || '').replace(/^todos\s*[:\-]\s*/gi, '').trim();
+        return s;
+    }
+
+    function extractTodos(val) {
+        if (val == null) return [];
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'object') {
+            var t = val.todos || val.todo || val.actions;
+            if (Array.isArray(t)) return t;
+            if (typeof t === 'string') {
+                var cleaned = cleanTodo(t);
+                if (!cleaned) return [];
+                return cleaned.indexOf(',') >= 0 ? cleaned.split(',').map(function (i) { return i.trim(); }).filter(Boolean) : [cleaned];
+            }
+        }
+        if (typeof val === 'string') {
+            var cleaned = cleanTodo(val);
+            if (!cleaned) return [];
+            return cleaned.indexOf(',') >= 0 ? cleaned.split(',').map(function (i) { return i.trim(); }).filter(Boolean) : [cleaned];
+        }
+        return [];
+    }
+
+    function safeParseCategory(dataCategory) {
+        if (dataCategory === undefined || dataCategory === null) return { summary: 'Insight indisponível.', todos: [] };
+        if (typeof dataCategory === 'object') {
+            var rawSummary = dataCategory.summary || dataCategory.resumo || dataCategory.text || '';
+            return { summary: cleanSummary(rawSummary), todos: extractTodos(dataCategory.todos || dataCategory) };
+        }
+        if (typeof dataCategory === 'string') return { summary: cleanSummary(dataCategory), todos: [] };
+        return { summary: 'Insight indisponível.', todos: [] };
+    }
+
+    function renderTodosAsBullets(todos) {
+        var arr = extractTodos(todos);
+        if (typeof todos === 'string' && todos.trim() && !arr.length) {
+            arr = todos.split(',').map(function (i) { return cleanTodo(i); }).filter(Boolean);
+        }
+        if (!arr.length) return '';
+        var esc = function (s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+        var ul = '<ul class="list-disc ml-5 mt-3 space-y-1 text-sm text-slate-600 dark:text-slate-400">';
+        arr.forEach(function (t) {
+            var s = (typeof t === 'string') ? cleanTodo(t) : cleanTodo(String(t || ''));
+            if (s) ul += '<li class="break-words">' + esc(s) + '</li>';
+        });
+        ul += '</ul>';
+        return ul;
+    }
+
+    // ==========================================
+    // 6. LOJA DE CRÉDITOS IA
+    // ==========================================
+    var _creditsPackLinks = {};
+
+    function openCreditsModal() {
+        var modal = document.getElementById('creditsModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            if (typeof lucide !== 'undefined' && lucide.icons) lucide.createIcons();
+            var container = document.getElementById('creditsStoreContainer');
+            if (container) container.innerHTML = '<div class="flex justify-center items-center py-10 text-slate-400 col-span-full"><i class="fas fa-spinner fa-spin text-2xl"></i></div>';
+            google.script.run.withSuccessHandler(renderPackages).withFailureHandler(function () {
+                if (container) container.innerHTML = '<div class="text-center py-10 text-slate-400 col-span-full">Não foi possível carregar os pacotes.</div>';
+            }).getStorePackages();
+        }
+    }
+
+    function openCreditsLink(packId) {
+        var link = (_creditsPackLinks && _creditsPackLinks[packId]) ? _creditsPackLinks[packId].toString().trim() : '';
+        if (link && link.length > 5 && link.indexOf('http') === 0) {
+            window.open(link, '_blank');
+        } else {
+            notify('Link de pagamento não configurado.', 'warning');
+        }
+    }
+
+    /** Renderiza os cartões de pacotes na loja de créditos. */
+    function renderPackages(packs) {
+        var container = document.getElementById('creditsStoreContainer');
+        if (!container) return;
+        _creditsPackLinks = {};
+
+        if (!packs || !Array.isArray(packs) || packs.length === 0) {
+            container.innerHTML = '<div class="text-center py-10 text-slate-400 col-span-full border-2 border-dashed border-slate-600 rounded-2xl">Nenhum pacote disponível no momento.</div>';
+            return;
+        }
+
+        var html = '';
+        packs.forEach(function (p) {
+            var id = (p.id || '').toString();
+
+            // CORREÇÃO: O backend agora envia 'p.name' e 'p.price'
+            var nome = (p.name || '').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            var creditos = p.credits != null ? p.credits : 0;
+            var preco = p.price != null ? parseFloat(p.price).toFixed(2) : '0.00';
+            var link = (p.link || '').toString().trim();
+
+            _creditsPackLinks[id] = link;
+
+            html += '<div class="flex flex-col gap-3 p-4 rounded-xl bg-slate-800/80 border border-slate-600">';
+            html += '<p class="font-black text-white">' + nome + '</p>';
+            html += '<p class="text-sm text-slate-300">' + creditos + ' Créditos</p>';
+            html += '<p class="text-lg font-black text-[#06B6D4]">' + preco + '€</p>';
+            html += '<button type="button" data-pack-id="' + id.replace(/"/g, '&quot;') + '" onclick="initStripeCheckout(this.getAttribute(\'data-pack-id\'))" class="mt-auto px-4 py-2 rounded-xl font-bold text-sm bg-flowly-primary text-white hover:bg-cyan-500 transition shadow-sm">Comprar Agora</button>';
+            html += '</div>';
+        });
+        container.innerHTML = html;
+    }
+
+    function closeCreditsModal() {
+        var modal = document.getElementById('creditsModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    // ==========================================
+    // CORREÇÃO: LEITURA E VISUALIZAÇÃO DE CRÉDITOS IA
+    // ==========================================
+
+    /** Atualiza o contador de créditos IA no header a partir da Master DB. */
+    function fetchCredits() {
+        // 1. Se for Operador (Colaborador) E NÃO tiver permissão para gastar créditos, mostramos "--" e paramos.
+        if (currentUser && currentUser.role === 'Operador') {
+            if (typeof canSpendCredits === 'function' && !canSpendCredits()) {
+                const el = document.getElementById('creditsDisplay');
+                const numEl = document.getElementById('creditsDisplayNumber');
+                if (numEl) numEl.textContent = '--';
+                if (el) {
+                    el.classList.remove('text-[#06B6D4]');
+                    el.classList.add('text-slate-500', 'opacity-50');
+                    const icon = el.querySelector('.credits-display-icon');
+                    if (icon) {
+                        icon.classList.remove('text-[#06B6D4]');
+                        icon.classList.add('text-slate-500', 'opacity-50');
+                    }
+                }
+                return; // Bloqueia aqui, não vai ler à Base de Dados.
+            }
+        }
+
+        // 2. Se for Gestor ou Colaborador COM permissão, vai ler os créditos do dono da conta
+        const emailToFetch = _ctxEmail();
+        if (!emailToFetch) return;
+
+        google.script.run
+            .withSuccessHandler(function (n) {
+                const el = document.getElementById('creditsDisplay');
+                const numEl = document.getElementById('creditsDisplayNumber');
+                if (!el || !numEl) return;
+
+                const value = (n != null ? n : '--');
+                const numCredits = typeof n === 'number' ? n : parseInt(n, 10);
+                numEl.textContent = value;
+
+                el.classList.remove('text-[#06B6D4]', 'text-slate-500', 'opacity-50');
+                const icon = el.querySelector('.credits-display-icon');
+
+                if (numCredits > 0) {
+                    el.classList.add('text-[#06B6D4]');
+                    if (icon) { icon.classList.remove('text-slate-500', 'opacity-50'); icon.classList.add('text-[#06B6D4]'); }
+                } else {
+                    el.classList.add('text-slate-500', 'opacity-50');
+                    if (icon) { icon.classList.remove('text-[#06B6D4]'); icon.classList.add('text-slate-500', 'opacity-50'); }
+                }
+            })
+            .withFailureHandler(function () {
+                const el = document.getElementById('creditsDisplay');
+                const numEl = document.getElementById('creditsDisplayNumber');
+                if (numEl) numEl.textContent = '--';
+                if (el) {
+                    el.classList.remove('text-[#06B6D4]');
+                    el.classList.add('text-slate-500', 'opacity-50');
+                }
+            })
+            .getAiCredits(emailToFetch);
+    }
+</script>

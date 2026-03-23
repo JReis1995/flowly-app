@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<!-- NOTA TÉCNICA (LINTER): Este ficheiro apresenta avisos de tags não fechadas porque a estrutura principal da página (como as tags de abertura <div id="appContent"> e <main id="appMain">) é importada através do ficheiro UI_Base.html e fechada neste ficheiro. -->
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Permissions-Policy" content="interest-cohort=(), microphone=(), camera=(), magnetometer=(), gyroscope=(), accelerometer=(), usb=()">
+    <title>Flowly 360 Pro</title>
+    <script src="shim.js"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- CRÍTICO: Configuração do Tailwind que estava a faltar e partia o layout -->
+    <script type="text/javascript">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        flowly: {
+                            primary: '#06B6D4',   // Turquoise
+                            success: '#10B981',   // Green
+                            midnight: '#020617',  // Midnight
+                            light: '#F8FAFC',     // Light Background
+                            white: '#FFFFFF',     // White
+                            slate: '#64748B',     // Slate
+                            border: '#E2E8F0',    // Border
+                            danger: '#EF4444',    // Alert Red
+                            warning: '#FACC15'    // Warning Yellow
+                        }
+                    },
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    animation: {
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'slide-in-right': 'slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'
+                    },
+                    keyframes: {
+                        slideInRight: {
+                            '0%': { transform: 'translateX(100%)', opacity: '0' },
+                            '100%': { transform: 'translateX(0)', opacity: '1' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="Style.css">
+</head>
+
+<body class="flex flex-col min-h-screen text-flowly-midnight font-sans" data-setup-token=""
+    data-action-set-password=""
+    data-set-password-token="">
+
+    <script>
+        window._paymentSuccess = "";
+        window._creditsAdded = "";
+    </script>
+
+    <div id="appContent">
+        <main id="appMain">
+
+    <script src="UI_Base.js"></script>
+    <script src="UI_Dashboard.js"></script>
+    <script src="UI_SaaS_Admin.js"></script>
+    <script src="UI_CC_Logistica.js"></script>
+    <script src="UI_RH_CRM.js"></script>
+    <script src="UI_Frota_Condominios.js"></script>
+    <script src="UI_AI_Export.js"></script>
+    <script src="UI_Fichas_Tecnicas.js"></script>
+
+    <!-- FECHO DAS TAGS PRINCIPAIS ABERTAS NO UI_BASE -->
+    </main>
+    </div>
+
+    <!-- Proteção contra falhas no carregamento de Fichas Técnicas -->
+    <script>
+        window.reportModuleError = window.reportModuleError || function(moduleName, error) {
+            var msg = "Erro técnico no módulo [" + moduleName + "]: " + (error ? (error.message || error) : "Desconhecido");
+            console.error(msg, error);
+            if (typeof notify === 'function') notify(msg, "error"); else alert(msg);
+        };
+    </script>
+
+    <!-- Scripts da Aplicação (Lógica) -->
+    <script src="JS_Globals.js"></script>
+    <script src="JS_Auth_Nav.js"></script>
+    <script src="JS_Dashboard.js"></script>
+    <script src="JS_SaaS_Admin.js"></script>
+    <script src="JS_CC_Logistica.js"></script>
+    <script src="JS_RH_CRM.js"></script>
+    <script src="JS_Frota.js"></script>
+    <script src="JS_Condominios_Vasilhame.js"></script>
+    <script src="JS_AI_Export.js"></script>
+    <script src="JS_Fichas_Tecnicas.js"></script>
+
+</body>
+
+</html>

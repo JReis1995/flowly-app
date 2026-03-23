@@ -1,0 +1,643 @@
+<!-- 10. JS_Auth_Nav.html -->
+<script>
+    // ==========================================
+    // 1. AUTENTICAÇÃO E PRIVACIDADE
+    // ==========================================
+
+    function acceptPrivacy() {
+        localStorage.setItem('flowly_privacy_accepted', JSON.stringify({ ts: Date.now(), version: '1.0' }));
+        document.getElementById('modalPrivacy').classList.add('hidden');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function checkPrivacyConsent() {
+        const accepted = localStorage.getItem('flowly_privacy_accepted');
+        // Renovar consentimento a cada 365 dias
+        if (!accepted) return false;
+        try {
+            const data = JSON.parse(accepted);
+            const yearMs = 365 * 24 * 60 * 60 * 1000;
+            return (Date.now() - data.ts) < yearMs;
+        } catch (e) { return false; }
+    }
+
+    function toggleAuth(type) {
+        const login = document.getElementById('formLogin');
+        const register = document.getElementById('formRegister');
+        if (type === 'register') {
+            login.classList.add('hidden');
+            register.classList.remove('hidden');
+            document.getElementById('r_email').value = '';
+            document.getElementById('r_pass').value = '';
+            document.getElementById('r_pass2').value = '';
+        } else {
+            register.classList.add('hidden');
+            login.classList.remove('hidden');
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('flowly_user');
+        currentUser = null;
+        currentImpersonate = null;
+        window.currentAiInsight = null;
+        document.getElementById('appContent').classList.add('hidden');
+        document.getElementById('authOverlay').classList.remove('hidden');
+        document.getElementById('impersonateBanner').classList.add('hidden');
+        document.getElementById('l_email').value = '';
+        document.getElementById('l_pass').value = '';
+        toggleAuth('login');
+    }
+
+    function recoverPass() {
+        const email = document.getElementById('rec_email').value.trim();
+        if (!email) return notify("Insira o seu email.", "warning");
+        notify("A enviar link de recuperação...", "info");
+        document.getElementById('modalRecover').classList.add('hidden');
+        google.script.run
+            .withFailureHandler(err => notify("Erro ao enviar: " + err, "error"))
+            .withSuccessHandler(res => {
+                if (res && res.success) notify(res.message, "success");
+                else notify(res ? res.error : "Erro desconhecido.", "error");
+            }).sendRecoveryEmail(email);
+    }
+
+    function doLogin() {
+        const e = (document.getElementById('l_email').value || '').trim();
+        const p = (document.getElementById('l_pass').value || '').trim();
+        if (!e || !p) return notify("Credenciais obrigatórias.", "warning");
+        notify("Validando...", "info");
+        google.script.run.withSuccessHandler(res => {
+            if (res.success) {
+                currentUser = res;
+                currentUser.loginTimestamp = Date.now();
+                if (res.role !== 'SuperAdmin') currentImpersonate = null;
+                localStorage.setItem('flowly_user', JSON.stringify(currentUser));
+                initApp();
+            } else {
+                notify(res.error, "error");
+            }
+        }).handleLogin(e, p);
+    }
+
+    function submitSetupPassword() {
+        const token = document.getElementById('viewSetupPassword').dataset.token ?? '';
+        const p1 = document.getElementById('setupPassword').value;
+        const p2 = document.getElementById('setupPassword2').value;
+        const errEl = document.getElementById('setupPasswordError');
+        errEl.classList.add('hidden');
+
+        if (p1.length < 6) { errEl.textContent = 'A palavra-passe deve ter pelo menos 6 caracteres.'; errEl.classList.remove('hidden'); return; }
+        if (p1 !== p2) { errEl.textContent = 'As palavras-passe não coincidem.'; errEl.classList.remove('hidden'); return; }
+        if (!token) { errEl.textContent = 'Este link de convite é inválido ou já expirou. Peça ao administrador para reenviar o convite.'; errEl.classList.remove('hidden'); return; }
+
+        google.script.run.withSuccessHandler(res => {
+            if (res.success) {
+                notify('Conta ativada! Pode iniciar sessão.', 'success');
+                document.getElementById('viewSetupPassword').classList.add('hidden');
+                document.getElementById('authOverlay').classList.remove('hidden');
+                document.body.dataset.setupToken = '';
+            } else {
+                errEl.textContent = res.error || 'Este link de convite é inválido ou já expirou. Peça ao administrador para reenviar o convite.';
+                errEl.classList.remove('hidden');
+            }
+        }).withFailureHandler(() => {
+            errEl.textContent = 'Erro de ligação. Tente novamente.';
+            errEl.classList.remove('hidden');
+        }).completeStaffSetupPassword(token, p1);
+    }
+
+    function submitSetTeamPassword() {
+        const token = document.getElementById('setTeamPasswordToken').value || '';
+        const p1 = document.getElementById('setTeamPasswordInput').value;
+        const p2 = document.getElementById('setTeamPasswordInput2').value;
+        const errEl = document.getElementById('setTeamPasswordError');
+        errEl.classList.add('hidden');
+
+        if (p1.length < 6) { errEl.textContent = 'A password deve ter pelo menos 6 caracteres.'; errEl.classList.remove('hidden'); return; }
+        if (p1 !== p2) { errEl.textContent = 'As passwords não coincidem.'; errEl.classList.remove('hidden'); return; }
+        if (!token) { errEl.textContent = 'Este link é inválido ou já expirou. Contacta o administrador.'; errEl.classList.remove('hidden'); return; }
+
+        google.script.run.withSuccessHandler(res => {
+            if (res.success) {
+                notify('Password definida! Pode iniciar sessão.', 'success');
+                document.getElementById('viewSetTeamPassword').classList.add('hidden');
+                document.getElementById('authOverlay').classList.remove('hidden');
+                document.body.dataset.actionSetPassword = '';
+                document.body.dataset.setPasswordToken = '';
+            } else {
+                errEl.textContent = res.error || 'Link inválido ou já expirado. Contacta o administrador.';
+                errEl.classList.remove('hidden');
+            }
+        }).withFailureHandler(() => {
+            errEl.textContent = 'Erro de ligação. Tente novamente.';
+            errEl.classList.remove('hidden');
+        }).saveNewTeamPassword(token, p1);
+    }
+
+    // ==========================================
+    // 2. PERMISSÕES BÁSICAS E VISIBILIDADE
+    // ==========================================
+
+    function isSuperAdminUser() {
+        return currentUser && currentUser.email && currentUser.email.toLowerCase() === 'josereis1995@gmail.com';
+    }
+
+    function canAccessIA() {
+        if (!currentUser) return false;
+        if (isSuperAdminUser()) return true;
+        if (currentUser.role === 'Gestor') return (currentUser.planConfig && currentUser.planConfig.ia !== false);
+        const perms = currentUser.permissions || currentUser._userPermissions;
+        if (perms && perms.ia === false) return false;
+        return (currentUser._impersonatedPlanConfig && currentUser._impersonatedPlanConfig.ia !== false) || (currentUser.planConfig && currentUser.planConfig.ia !== false) || true;
+    }
+
+    function canAccessAdmin() {
+        if (!currentUser) return false;
+        if (isSuperAdminUser()) return true;
+        if (currentUser.role === 'FlowlyTeam') return (currentUser.cargo === 'Owner') || (currentUser.planConfig && currentUser.planConfig.admin === true) || (currentUser.permissions && currentUser.permissions.admin === true);
+        /* REGRA: Owner, Admin e Developer respeitam SEMPRE as permissões granulares — sem bypass por cargo */
+        if (currentUser.role === 'Owner') return true;
+        if (currentUser.role === 'Gestor') return (currentUser.planConfig && currentUser.planConfig.admin !== false);
+        const perms = currentUser.permissions || currentUser._userPermissions || currentUser.planConfig;
+        return perms && perms.admin === true;
+    }
+
+    function canSpendCredits() {
+        if (!currentUser) return false;
+        if (isSuperAdminUser()) return true;
+        if (currentUser.role === 'Gestor') return true; // O patrão pode sempre gastar
+        if (currentUser.role === 'Owner' || (currentUser.role === 'FlowlyTeam' && currentUser.cargo === 'Owner')) return true;
+
+        // Se for Colaborador (Operador), verifica a permissão específica dada no painel
+        var perms = currentUser.permissions || currentUser._userPermissions || currentUser.planConfig || {};
+        return perms.gastarCreditos === true;
+    }
+
+    function applyCreditButtonsVisibility() {
+        var can = typeof canSpendCredits === 'function' && canSpendCredits();
+        var isInternalTeam = currentUser && currentUser.role === 'FlowlyTeam';
+        var isBlockedForNonOwner = isInternalTeam && currentUser.cargo !== 'Owner' && !isSuperAdminUser();
+        var show = can && !isBlockedForNonOwner;['btn_ref_fin', 'btn_ref_rh', 'btn_ref_stocks', 'btn_ref_fleet'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) {
+                if (show) {
+                    el.classList.remove('auth-required');
+                    el.style.removeProperty('display');
+                } else {
+                    el.classList.add('auth-required');
+                    if (isBlockedForNonOwner) el.style.setProperty('display', 'none', 'important');
+                }
+            }
+        });
+    }
+
+    var _LEGACY_CONFIG_KEYS = { dashFinanceiro: 'financeiro', dashStocks: 'stocks', dashRH: 'rh' };
+
+    function resolveFeaturePermission(config, featureId) {
+        if (config.hasOwnProperty(featureId)) return config[featureId] === true;
+        var legacy = _LEGACY_CONFIG_KEYS[featureId];
+        if (legacy && config.hasOwnProperty(legacy)) return config[legacy] === true;
+        /* REGRA ABSOLUTA: Bypass APENAS para Owner e SuperAdmin. Admin/Developer NUNCA têm bypass. FlowlyTeam com cargo Owner = bypass. */
+        var canBypass = currentUser && (currentUser.role === 'Owner' || isSuperAdminUser() || (currentUser.role === 'FlowlyTeam' && currentUser.cargo === 'Owner'));
+        return !!canBypass;
+    }
+
+    function applyClientConfig(config) {
+        try {
+            if (!config || typeof config !== 'object') return;
+            console.log("Aplicando permissões para:", config);
+            var cfg = config;
+            var registry = (typeof APP_FEATURES_REGISTRY !== 'undefined') ? APP_FEATURES_REGISTRY : [];
+            registry.filter(function (f) { return f.type === 'component'; }).forEach(function (feature) {
+                var visible = resolveFeaturePermission(cfg, feature.id);
+                var ids = feature.targetIds && feature.targetIds.length ? feature.targetIds : (feature.targetId ? [feature.targetId] : ['dash-' + feature.id]);
+                ids.forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (!el) return;
+                    if (visible) {
+                        el.classList.remove('auth-required');
+                        el.style.removeProperty('display');
+                    } else {
+                        el.classList.add('auth-required');
+                    }
+                });
+            });
+        } catch (e) {
+            console.error("Erro em applyClientConfig:", e);
+        }
+    }
+
+    function applyAccessControl(planConfig) {
+        applyImpersonateModules(planConfig);
+        applyClientConfig(planConfig);
+    }
+
+    function applyImpersonateModules(planConfig) {
+        const isClientView = currentImpersonate && impersonateMode === 'client';
+        let cfg = (impersonateMode === 'full' && currentImpersonate)
+            ? { rh: true, cc: true, logistica: true, admin: true, dashboard: true, access: true, ia: true, exportacao: true, crm: true, fichas_tecnicas: true }
+            : (planConfig || { rh: true, cc: true, logistica: true, admin: true, dashboard: true, ia: true, exportacao: true, crm: true, fichas_tecnicas: true });
+        const up = currentUser && currentUser._userPermissions;
+
+        if (up && !isSuperAdminUser()) {
+            cfg = { rh: cfg.rh && up.rh !== false, cc: cfg.cc && up.cc !== false, logistica: cfg.logistica && up.logistica !== false, admin: cfg.admin && up.admin === true, dashboard: cfg.dashboard && up.dashboard !== false, ia: cfg.ia !== false && up.ia !== false, exportacao: (cfg.exportacao !== false) && (up.exportacao !== false), crm: (cfg.crm !== false) && (up.crm !== false), fichas_tecnicas: (cfg.fichas_tecnicas !== false) && (up.fichas_tecnicas !== false) };
+        }
+
+        const modMap = {
+            btnModDash: cfg.dashboard,
+            btnModLogistica: cfg.logistica,
+            btnModRH: cfg.rh,
+            btnModCC: cfg.cc,
+            btnModAdmin: cfg.admin || cfg.access,
+            btnModIA: cfg.ia !== false,
+            btnModExportacao: cfg.exportacao !== false,
+            btnModFrota: cfg.fleet !== false,
+            btnModCrm: cfg.crm !== false,
+            btnModFichasTecnicas: cfg.fichas_tecnicas !== false,
+            sideDashboard: cfg.dashboard,
+            sideLogistica: cfg.logistica,
+            sideRh: cfg.rh,
+            sideCc: cfg.cc,
+            sideAdmin: cfg.admin || cfg.access,
+            sideIa: cfg.ia !== false,
+            sideExportacao: cfg.exportacao !== false,
+            sideFrota: cfg.fleet !== false,
+            sideCrm: cfg.crm !== false,
+            sideFichasTecnicas: cfg.fichas_tecnicas !== false
+        };
+
+        Object.entries(modMap).forEach(([id, visible]) => {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('hidden', !visible);
+        });
+
+        applyCreditButtonsVisibility();
+
+        // Em "Visão Cliente", esconder Central SaaS — o cliente nunca a vê
+        const btnCentral = document.getElementById('btnCentral');
+        if (btnCentral && isClientView) btnCentral.classList.add('hidden');
+
+        // CONDOMÍNIOS: Mostrar/ocultar botões baseado em businessVertical
+        const btnSideCondominios = document.getElementById('sideCondominios');
+        const btnModCondominios = document.getElementById('btnModCondominios');
+        const showCondominios = currentUser &&
+            (isSuperAdminUser() ||
+             currentUser.businessVertical === 'Condominium' ||
+             currentUser.businessVertical === 'Condomínios');
+        
+        if (btnSideCondominios) btnSideCondominios.classList.toggle('hidden', !showCondominios);
+        if (btnModCondominios) btnModCondominios.classList.toggle('hidden', !showCondominios);
+
+        const list = document.getElementById('impersonateClientsList');
+        if (!list) return;
+
+        // Usa clientsCache global caso não haja scope
+        const active = (typeof clientsCache !== 'undefined' ? clientsCache : []).filter(c => c.status === 'Ativo' || !c.status);
+        list.innerHTML = active.map(c => `<div onclick="(function(){document.getElementById('impersonateDropLabel').dataset.clientName='${c.name.replace(/'/g, "\\'")}';impersonateFromDrop('${c.email}','${c.name.replace(/'/g, "\\'")}');})()" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition"><div class="w-6 h-6 bg-cyan-50 rounded-lg flex items-center justify-center flex-shrink-0"><i data-lucide="user" class="w-3.5 h-3.5 text-flowly-primary"></i></div><div class="min-w-0"><p class="text-[11px] font-black text-flowly-midnight truncate">${c.name}</p><p class="text-[9px] text-slate-400 truncate">${c.email}</p></div></div>`).join('');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // ==========================================
+    // 3. NAVEGAÇÃO E SCROLL
+    // ==========================================
+
+    function nav(view) {
+        if (!view) return;
+        // Segurança: não crashar se utilizador ainda não carregado
+        if (!currentUser && (view === 'admin' || view === 'central' || view === 'planos')) return;
+
+        // Segurança: Central SaaS e Planos apenas para SuperAdmin ou Equipa Flowly, fora do modo "Visão Cliente"
+        const isClientViewNav = currentImpersonate && impersonateMode === 'client';
+        const canAccessCentral = isSuperAdminUser() || (currentUser && currentUser.role === 'FlowlyTeam');
+        if ((view === 'central' || view === 'planos') && (!canAccessCentral || isClientViewNav)) {
+            notify('Acesso restrito — área exclusiva de administração.', 'error');
+            return;
+        }
+        // Restrição IA: verificar permissões do utilizador
+        if (view === 'ia' && !canAccessIA()) {
+            notify('Acesso Restrito. Não tem permissão para o módulo IA Insight.', 'error');
+            return;
+        }
+        // Restrição Gestão de Acessos: verificar permissão admin
+        if (view === 'admin' && typeof canAccessAdmin === 'function' && !canAccessAdmin()) {
+            notify('Acesso Restrito. Não tem permissão para a Gestão de Acessos.', 'error');
+            return;
+        }
+
+        document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+
+        let viewId = 'view' + view.charAt(0).toUpperCase() + view.slice(1);
+        if (view.toLowerCase() === 'rh') viewId = document.getElementById('viewRh') ? 'viewRh' : 'viewRH';
+        if (view.toLowerCase() === 'ia') viewId = 'viewIA';
+        if (view.toLowerCase() === 'exportacao') viewId = 'viewExportacao';
+        if (view.toLowerCase() === 'frota') viewId = 'viewFrota';
+        if (view.toLowerCase() === 'crm') viewId = 'viewCrm';
+        if (view.toLowerCase() === 'condominios') viewId = 'viewCondominios';
+        if (view.toLowerCase() === 'fichas_tecnicas') viewId = 'viewFichasTecnicas';
+
+        const target = document.getElementById(viewId);
+        if (target) {
+            target.classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Sidebar: ocultar na home, mostrar nas restantes
+        const sidebar = document.getElementById('appSidebar');
+        const appMain = document.getElementById('appMain');
+        const hideSidebar = (view === 'home');
+        if (sidebar) sidebar.classList.toggle('hidden', hideSidebar);
+        if (appMain) {
+            appMain.classList.toggle('pl-14', !hideSidebar);
+            appMain.classList.toggle('px-5', hideSidebar);
+            if (!hideSidebar) appMain.classList.remove('px-5');
+        }
+
+        // Destacar botão activo na sidebar
+        const sideMap = { home: 'sideHome', dashboard: 'sideDashboard', logistica: 'sideLogistica', rh: 'sideRh', cc: 'sideCc', admin: 'sideAdmin', ia: 'sideIa', exportacao: 'sideExportacao', frota: 'sideFrota', crm: 'sideCrm', condominios: 'sideCondominios', fichas_tecnicas: 'sideFichasTecnicas' };
+        document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+        const activeBtn = document.getElementById(sideMap[view]);
+        if (activeBtn) activeBtn.classList.add('active');
+
+        // Lazy loading e Contexto de view
+        const cacheKey = view + '_' + (currentImpersonate || 'self') + '_' + impersonateMode;
+        const forceReload = !hasViewCache(cacheKey);
+
+        if (view === 'rh' && typeof loadRH === 'function') { loadRH(); }
+        if (view === 'cc' && typeof loadCC === 'function') { loadCC(); } // CC é sempre recarregado (dados financeiros em tempo real)
+        if (view === 'crm') {
+            if (typeof loadClientesCRM === 'function') loadClientesCRM();
+            if (typeof loadFornecedoresCRM === 'function') loadFornecedoresCRM();
+        }
+
+        if (view === 'dashboard') {
+            var cached = null;
+            try {
+                var c = localStorage.getItem(_aiCacheKey());
+                if (c) {
+                    var parsed = JSON.parse(c);
+                    if (parsed && (!parsed._ownerEmail || parsed._ownerEmail === _ctxEmail())) cached = parsed;
+                }
+            } catch (e) { }
+
+            if (cached && typeof loadAlertsUI === 'function') {
+                loadAlertsUI(cached);
+            } else {
+                google.script.run.withSuccessHandler(function (entries) {
+                    if (Array.isArray(entries) && entries.length > 0) {
+                        var best = entries.find(function (e) {
+                            var o = e.analysisObject || {};
+                            if (typeof o === 'string') { try { o = JSON.parse(o) || {}; } catch (x) { o = {}; } }
+                            return (o.financeiro || o.stocks || o.rh);
+                        }) || entries[0];
+                        var obj = best.analysisObject || best.analysis || {};
+                        if (typeof obj === 'string') { try { obj = JSON.parse(cleanAiMarkdown(obj)) || {}; } catch (e) { obj = {}; } }
+                        if (obj && obj._raw) { try { var p = JSON.parse(cleanAiMarkdown(obj._raw)); if (p) obj = p; } catch (e) { } }
+                        if (obj && (obj.financeiro || obj.stocks || obj.rh) && typeof loadAlertsUI === 'function') {
+                            var fakeRes = { aiInsight: obj, success: true };
+                            loadAlertsUI(fakeRes);
+                        }
+                    }
+                }).withFailureHandler(function () { }).getAIHistory(_ctxEmail(), '');
+            }
+            if (forceReload && typeof updateDash === 'function') {
+                setViewCache(cacheKey, true);
+                updateDash();
+            }
+        }
+
+        if (view === 'central') {
+            if (typeof initCentralListeners === 'function') initCentralListeners();
+            if (typeof setCentralTab === 'function') setCentralTab('Ativo');
+        }
+        if (view === 'planos') {
+            if (typeof initCentralListeners === 'function') initCentralListeners();
+            if (typeof loadPlanos === 'function') loadPlanos();
+        }
+        if (view === 'admin' && typeof loadUsers === 'function') { loadUsers(); }
+
+        if (view === 'ia') {
+            google.script.run.withSuccessHandler(function (res) {
+                window._dashboardResForCFO = res;
+                var cfg = res && res.clientConfig || (currentUser && (currentUser._impersonatedPlanConfig || currentUser.planConfig));
+                if (cfg && typeof applyClientConfig === 'function') applyClientConfig(cfg);
+                if (typeof loadAIAlerts === 'function') loadAIAlerts(res);
+            }).withFailureHandler(function () {
+                if (typeof loadAIAlerts === 'function') loadAIAlerts(null);
+            }).getUnifiedDashboardData(_ctxEmail(), window._dashStart || '', window._dashEnd || '', window._chartStart || '', window._chartEnd || '', false);
+        }
+
+        if (view === 'home' && typeof checkUnmappedItems === 'function') { checkUnmappedItems(); }
+        if (view === 'exportacao' && typeof switchDataTab === 'function') switchDataTab('export');
+        if (view === 'frota' && typeof switchFrotaTab === 'function') { switchFrotaTab('contentVeiculos'); }
+        if (view === 'fichas_tecnicas' && typeof loadFichasTecnicas === 'function') { loadFichasTecnicas(); }
+
+        if (view === 'logistica') {
+            if (typeof updateTipoLancamento === 'function') { updateTipoLancamento('f'); updateTipoLancamento('m'); }
+            if (typeof loadFornecedoresDatalist === 'function') loadFornecedoresDatalist();
+            if (typeof loadClientesDatalist === 'function') loadClientesDatalist();
+        }
+
+        if (view === 'frota' && typeof loadFornecedoresDatalist === 'function') loadFornecedoresDatalist();
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Tooltip sidebar brandado
+    (function () {
+        const tip = () => document.getElementById('sideTooltip');
+        document.addEventListener('mouseover', e => {
+            const btn = e.target.closest('#appSidebar .sidebar-btn');
+            if (!btn || !btn.dataset.tip) return;
+            const t = tip(); if (!t) return;
+            const r = btn.getBoundingClientRect();
+            t.textContent = btn.dataset.tip;
+            t.classList.remove('hidden');
+            t.style.top = (r.top + r.height / 2 - t.offsetHeight / 2) + 'px';
+            t.style.left = (r.right + 8) + 'px';
+        });
+        document.addEventListener('mouseout', e => {
+            const btn = e.target.closest('#appSidebar .sidebar-btn');
+            if (!btn) return;
+            const t = tip(); if (t) t.classList.add('hidden');
+        });
+    })();
+
+    // ==========================================
+    // 4. MODO ESPAÇÃO E ALTERAÇÃO DE VISÃO
+    // ==========================================
+
+    function updateImpersonateDropLabel() {
+        const label = document.getElementById('impersonateDropLabel');
+        if (!label) return;
+
+        if (currentImpersonate) {
+            const name = label.dataset.clientName || currentImpersonate;
+            label.textContent = impersonateMode === 'full' ? '👁 ' + name : name;
+        } else {
+            label.textContent = 'Visão Total';
+            delete label.dataset.clientName;
+        }
+    }
+
+    function toggleImpersonateDrop(e) {
+        e.stopPropagation();
+        const menu = document.getElementById('impersonateDropMenu');
+        if (menu) menu.classList.toggle('hidden');
+    }
+
+    function exitImpersonateFromDrop() {
+        document.getElementById('impersonateDropMenu')?.classList.add('hidden');
+        exitImpersonate();
+    }
+
+    function impersonateFromDrop(email, nome) {
+        document.getElementById('impersonateDropMenu')?.classList.add('hidden');
+        impersonate(email, nome);
+    }
+
+    function populateImpersonateDropdown(clients) {
+        const list = document.getElementById('impersonateClientsList');
+        if (!list) return;
+        const active = (clients || []).filter(c => c.status === 'Ativo' || !c.status);
+        list.innerHTML = active.map(c => {
+            const emailEsc = c.email.replace(/'/g, "\\'");
+            const nameEsc = c.name.replace(/'/g, "\\'");
+            return `<div onclick="(function(){document.getElementById('impersonateDropLabel').dataset.clientName='${nameEsc}';impersonateFromDrop('${emailEsc}','${nameEsc}');})()" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition"> <div class="w-6 h-6 bg-cyan-50 rounded-lg flex items-center justify-center flex-shrink-0"> <i data-lucide="user" class="w-3.5 h-3.5 text-flowly-primary"></i> </div> <div class="min-w-0"> <p class="text-[11px] font-black text-flowly-midnight truncate">${c.name}</p> <p class="text-[9px] text-slate-400 truncate">${c.email}</p> </div> </div>`;
+        }).join('');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function impersonate(e, n) {
+        showConfirm(`Entrar na conta de ${n}?`, () => {
+            currentImpersonate = e;
+            impersonateMode = 'client';
+            window.currentAiInsight = null;
+            Object.keys(_viewCache).forEach(k => delete _viewCache[k]);
+
+            const impBanner = document.getElementById('impersonateBanner');
+            if (impBanner) impBanner.classList.remove('hidden');
+
+            const impName = document.getElementById('impName');
+            if (impName) impName.innerText = n;
+
+            updateImpersonateModeBtns();
+            updateImpersonateDropLabel();
+            initApp();
+        });
+    }
+
+    function exitImpersonate() {
+        currentImpersonate = null;
+        impersonateMode = 'client';
+        window.currentAiInsight = null;
+        Object.keys(_viewCache).forEach(k => delete _viewCache[k]);
+
+        const impBanner = document.getElementById('impersonateBanner');
+        if (impBanner) impBanner.classList.add('hidden');
+
+        updateImpersonateDropLabel();
+        initApp();
+    }
+
+    function setImpersonateMode(mode) {
+        impersonateMode = mode;
+        // Limpar toda a cache para forçar recarregamento com o novo modo
+        Object.keys(_viewCache).forEach(k => delete _viewCache[k]);
+        updateImpersonateModeBtns();
+        notify(mode === 'full' ? 'Visão Total ativada — todos os módulos visíveis' : 'Visão Cliente ativada — apenas módulos do plano', 'info');
+        // Recarregar a app para aplicar a nova configuração de módulos e dados
+        initApp();
+    }
+
+    function updateImpersonateModeBtns() {
+        const btnClient = document.getElementById('impModeBtnClient');
+        const btnFull = document.getElementById('impModeBtnFull');
+        if (!btnClient || !btnFull) return;
+
+        if (impersonateMode === 'full') {
+            btnClient.className = 'px-2.5 py-0.5 rounded text-[9px] font-black text-white/70 hover:text-white transition';
+            btnFull.className = 'px-2.5 py-0.5 rounded text-[9px] font-black bg-white text-flowly-danger transition';
+        } else {
+            btnClient.className = 'px-2.5 py-0.5 rounded text-[9px] font-black bg-white text-flowly-danger transition';
+            btnFull.className = 'px-2.5 py-0.5 rounded text-[9px] font-black text-white/70 hover:text-white transition';
+        }
+    }
+
+    // Fechar dropdown ao clicar fora
+    document.addEventListener('click', function (e) {
+        const wrap = document.getElementById('impersonateDropdownWrap');
+        if (wrap && !wrap.contains(e.target)) {
+            const m = document.getElementById('impersonateDropMenu');
+            if (m) m.classList.add('hidden');
+        }
+    });
+
+    // ==========================================
+    // 5. PERFIL DE UTILIZADOR E TEMAS
+    // ==========================================
+
+    function openProfile() {
+        const stored = JSON.parse(localStorage.getItem('flowly_user') || '{}');
+        const emailEl = document.getElementById('profileEmail');
+        if (emailEl && stored.email) emailEl.placeholder = stored.email;
+
+        const geminiSec = document.getElementById('profileGeminiSection');
+        if (geminiSec) geminiSec.classList.toggle('hidden', !isSuperAdminUser());
+
+        document.getElementById('modalProfile').classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+        updateThemeButtons();
+    }
+
+    function saveGeminiKey() {
+        const key = document.getElementById('profileGeminiKey').value.trim();
+        if (!key) return notify('Introduza a chave.', 'error');
+        google.script.run.withSuccessHandler(res => {
+            if (res.success) {
+                notify('Chave guardada.', 'success');
+                document.getElementById('profileGeminiKey').value = '';
+            } else {
+                notify(res.error || 'Erro', 'error');
+            }
+        }).withFailureHandler(e => notify('Erro: ' + e, 'error')).setGeminiKey(key);
+    }
+
+    function saveProfileEmail() {
+        const val = document.getElementById('profileEmail').value.trim();
+        if (!val) { notify("Introduz um email válido.", "error"); return; }
+        notify("A guardar email...", "info");
+        google.script.run
+            .withSuccessHandler(() => notify("Email actualizado.", "success"))
+            .withFailureHandler(e => notify("Erro: " + e, "error"))
+            .updateUserEmail(val, _ctxEmail());
+    }
+
+    function saveProfilePassword() {
+        const val = document.getElementById('profilePassword').value;
+        if (!val || val.length < 6) { notify("A palavra-passe deve ter pelo menos 6 caracteres.", "error"); return; }
+        notify("A guardar palavra-passe...", "info");
+        google.script.run
+            .withSuccessHandler(() => {
+                notify("Palavra-passe actualizada.", "success");
+                document.getElementById('profilePassword').value = '';
+            })
+            .withFailureHandler(e => notify("Erro: " + e, "error"))
+            .updateUserPassword(val, _ctxEmail());
+    }
+
+    function applyTheme(name) {
+        document.body.dataset.theme = name;
+        localStorage.setItem('flowly_theme', name);
+        updateThemeButtons();
+    }
+
+    function updateThemeButtons() {
+        const current = document.body.dataset.theme || 'claro';['claro', 'escuro', 'neutro'].forEach(t => {
+            const btn = document.getElementById('themeBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+            if (!btn) return;
+            btn.classList.toggle('border-flowly-primary', t === current);
+            btn.classList.toggle('border-flowly-border', t !== current);
+        });
+    }
+</script>

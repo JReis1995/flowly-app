@@ -1,0 +1,500 @@
+<div id="layout-base">
+<!-- TOASTS & OVERLAYS GLOBAIS -->
+<div id="toastContainer" class="fixed top-8 right-4 z-[60000] flex flex-col gap-3 items-end pointer-events-none"></div>
+
+<div id="bulkLoadingOverlay"
+    class="hidden fixed inset-0 z-[55000] bg-black/60 flex flex-col items-center justify-center backdrop-blur-sm">
+    <div class="w-16 h-16 border-[6px] border-slate-100 border-t-flowly-primary rounded-full animate-spin"></div>
+    <p class="text-sm font-bold text-white mt-4 animate-pulse">A processar ações em massa...</p>
+</div>
+
+<div id="impersonateBanner"
+    class="hidden fixed top-0 w-full bg-flowly-danger text-white text-[10px] font-bold text-center py-1.5 z-[40000] shadow-lg flex justify-center items-center gap-3 flex-wrap">
+    <span>MODO ESPIÃO: <span id="impName" class="underline uppercase"></span></span>
+    <div class="flex items-center gap-1.5 bg-white/10 p-0.5 rounded-lg">
+        <button id="impModeBtnClient" onclick="setImpersonateMode('client')"
+            class="px-2.5 py-0.5 rounded text-[9px] font-black bg-white text-flowly-danger transition">Visão Cliente</button>
+        <button id="impModeBtnFull" onclick="setImpersonateMode('full')"
+            class="px-2.5 py-0.5 rounded text-[9px] font-black text-white/70 hover:text-white transition">Visão
+            Total</button>
+    </div>
+    <button onclick="exitImpersonate()"
+        class="bg-white/20 px-3 py-0.5 rounded hover:bg-white/40 transition text-[9px]">SAIR</button>
+</div>
+
+<datalist id="listaFornecedores"></datalist>
+<datalist id="listaClientes"></datalist>
+<datalist id="listaArtigos"></datalist>
+
+<!-- MODAIS GLOBAIS -->
+<div id="modalConfirm"
+    class="hidden fixed inset-0 z-[25000] bg-black/60 flex items-center justify-center p-6 backdrop-blur-sm">
+    <div
+        class="bg-white rounded-[2rem] w-full max-w-xs shadow-2xl border border-slate-100 overflow-hidden animate-slide-up">
+        <div class="bg-flowly-midnight px-6 pt-6 pb-4 flex flex-col items-center gap-2">
+            <div class="bg-cyan-500/20 p-3 rounded-full"><i data-lucide="alert-triangle"
+                    class="w-6 h-6 text-flowly-primary"></i></div>
+            <p id="modalConfirmMsg" class="text-white text-sm font-bold text-center mt-1 leading-snug">Tens a certeza?
+            </p>
+        </div>
+        <div class="flex gap-3 p-5">
+            <button id="modalConfirmOk"
+                class="flex-1 bg-flowly-primary text-white py-3 rounded-xl font-black text-sm shadow-lg hover:bg-cyan-400 transition active:scale-95">Confirmar</button>
+            <button onclick="document.getElementById('modalConfirm').classList.add('hidden')"
+                class="flex-1 bg-slate-100 text-slate-500 py-3 rounded-xl font-black text-sm hover:bg-slate-200 transition active:scale-95">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalFTReportConfirm" class="hidden fixed inset-0 z-[25000] bg-black/60 flex items-center justify-center p-6 backdrop-blur-sm">
+    <div class="bg-[#020617] rounded-[2rem] w-full max-w-sm shadow-2xl border border-white/10 overflow-hidden animate-slide-up">
+        <div class="px-6 pt-6 pb-4 flex flex-col items-center gap-2">
+            <div class="bg-cyan-500/20 p-3 rounded-full hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all">
+                <i data-lucide="file-text" class="w-6 h-6 text-[#06B6D4]"></i>
+            </div>
+            <p class="text-white text-base font-black text-center mt-1">Gerar Documento Técnico</p>
+            <p class="text-slate-400 text-xs font-bold text-center mt-1">Deseja incluir os preços de custo e margens de lucro no relatório?</p>
+        </div>
+        <div class="flex flex-col gap-3 p-5">
+            <button onclick="confirmFTReport(true)" class="w-full bg-[#06B6D4] text-white py-3 rounded-xl font-black text-sm shadow-lg hover:bg-cyan-400 hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] transition active:scale-95">Sim, incluir</button>
+            <button onclick="confirmFTReport(false)" class="w-full bg-[#64748B] text-white py-3 rounded-xl font-black text-sm shadow-lg hover:bg-slate-400 transition active:scale-95">Não, apenas ingredientes</button>
+            <button onclick="document.getElementById('modalFTReportConfirm').classList.add('hidden')" class="w-full bg-transparent text-slate-500 py-3 rounded-xl font-black text-sm hover:text-slate-300 transition active:scale-95">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalAIHistory"
+    class="hidden fixed inset-0 z-[25002] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div
+        class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden max-h-[85vh] flex flex-col">
+        <div class="bg-flowly-midnight px-5 py-4 flex justify-between items-center shrink-0">
+            <p id="modalAIHistoryTitle" class="text-white font-black text-base">Histórico de Análises IA</p>
+            <button type="button" onclick="document.getElementById('modalAIHistory').classList.add('hidden')"
+                class="bg-white/10 p-2 rounded-xl hover:bg-white/20 transition"><i data-lucide="x"
+                    class="w-4 h-4 text-white"></i></button>
+        </div>
+        <div id="modalAIHistoryList" class="flex-1 overflow-y-auto p-4 space-y-4 text-sm">
+            <p class="text-slate-500 dark:text-slate-400 text-center py-4">A carregar...</p>
+        </div>
+    </div>
+</div>
+
+<div id="modalAIHistoryDetail"
+    class="hidden fixed inset-0 z-[25003] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div
+        class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden max-h-[85vh] flex flex-col">
+        <div class="bg-flowly-midnight px-5 py-4 flex justify-between items-center shrink-0">
+            <p class="text-white font-black text-sm">Vista de detalhe</p>
+            <button type="button" onclick="document.getElementById('modalAIHistoryDetail').classList.add('hidden')"
+                class="bg-white/10 p-2 rounded-xl hover:bg-white/20 transition"><i data-lucide="x"
+                    class="w-4 h-4 text-white"></i></button>
+        </div>
+        <div id="modalAIHistoryDetailBody"
+            class="flex-1 overflow-y-auto p-4 text-sm text-slate-700 dark:text-slate-300 space-y-4"></div>
+    </div>
+</div>
+
+<div id="creditsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+    onclick="if(event.target===this) closeCreditsModal()">
+    <div class="bg-slate-900 border-2 border-[#06B6D4] rounded-xl text-white w-full max-w-2xl mx-4 shadow-2xl overflow-hidden animate-slide-up"
+        onclick="event.stopPropagation()">
+        <div class="px-6 pt-6 pb-4 flex justify-between items-center shrink-0">
+            <p class="text-white font-black text-base">Adquirir Créditos AI</p>
+            <button type="button" onclick="closeCreditsModal()"
+                class="bg-white/10 p-2 rounded-xl hover:bg-white/20 transition"><i data-lucide="x"
+                    class="w-4 h-4 text-white"></i></button>
+        </div>
+        <div class="p-6">
+            <div id="creditsStoreContainer" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="flex justify-center items-center py-10 text-slate-400"><i
+                        class="fas fa-spinner fa-spin text-2xl"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modalProfile"
+    class="hidden fixed inset-0 z-[15000] bg-black/60 flex items-end justify-center p-4 backdrop-blur-sm">
+    <div
+        class="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl border border-slate-100 overflow-hidden animate-slide-up mb-2">
+        <div class="bg-flowly-midnight px-6 pt-6 pb-5 flex justify-between items-center">
+            <div>
+                <p class="text-white font-black text-base">O Meu Perfil</p>
+                <p class="text-[10px] text-slate-400 mt-0.5 font-bold uppercase tracking-wider">Definições da conta</p>
+            </div>
+            <button onclick="document.getElementById('modalProfile').classList.add('hidden')"
+                class="bg-white/10 p-2 rounded-xl hover:bg-white/20 transition"><i data-lucide="x"
+                    class="w-4 h-4 text-white"></i></button>
+        </div>
+        <div class="p-6 space-y-5">
+            <div class="space-y-1.5">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Email</label>
+                <div class="flex gap-2">
+                    <input id="profileEmail" type="email" placeholder="novo@email.com"
+                        class="flex-1 bg-slate-50 border border-flowly-border rounded-xl px-4 py-3 text-sm font-bold text-flowly-midnight outline-none focus:ring-2 ring-flowly-primary/30">
+                    <button onclick="saveProfileEmail()"
+                        class="bg-flowly-primary text-white px-4 py-3 rounded-xl font-black text-xs shadow-md hover:bg-cyan-400 transition active:scale-95">Guardar</button>
+                </div>
+            </div>
+            <div class="space-y-1.5">
+                <form autocomplete="off" onsubmit="event.preventDefault(); saveProfilePassword(); return false;"
+                    role="group">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Nova
+                        Palavra-passe</label>
+                    <div class="flex gap-2 mt-1">
+                        <input id="profilePassword" type="password" placeholder="••••••••" inputmode="text"
+                            autocomplete="new-password"
+                            style="-webkit-user-select: text !important; user-select: text !important;"
+                            class="flex-1 bg-slate-50 border border-flowly-border rounded-xl px-4 py-3 text-sm font-bold text-flowly-midnight outline-none focus:ring-2 ring-flowly-primary/30">
+                        <button type="button" onclick="saveProfilePassword()"
+                            class="bg-flowly-primary text-white px-4 py-3 rounded-xl font-black text-xs shadow-md hover:bg-cyan-400 transition active:scale-95">Guardar</button>
+                    </div>
+                </form>
+            </div>
+            <div id="profileGeminiSection" class="hidden space-y-2">
+                <form autocomplete="off" onsubmit="event.preventDefault(); saveGeminiKey(); return false;" role="group">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Chave API
+                        Gemini</label>
+                    <div class="flex gap-2 mt-1">
+                        <input id="profileGeminiKey" type="password" placeholder="Chave da API" autocomplete="off"
+                            class="flex-1 bg-slate-50 p-3 rounded-xl font-bold text-xs outline-none focus:ring-2 ring-flowly-primary/30 border border-flowly-border">
+                        <button type="button" onclick="saveGeminiKey()"
+                            class="bg-flowly-primary text-white px-4 py-3 rounded-xl font-black text-xs shadow-md hover:bg-cyan-400 transition">Guardar</button>
+                    </div>
+                    <p class="text-[9px] text-slate-400 mt-1">Apenas Super Admin. A chave é guardada de forma segura.
+                    </p>
+                </form>
+            </div>
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Tema da Aplicação</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="applyTheme('claro')" id="themeBtnClaro"
+                        class="theme-opt-btn flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 border-flowly-border hover:border-flowly-primary transition">
+                        <div class="w-8 h-8 rounded-xl bg-slate-100 border border-flowly-border shadow-sm"></div>
+                        <span class="text-[10px] font-black text-slate-500">Claro</span>
+                    </button>
+                    <button onclick="applyTheme('escuro')" id="themeBtnEscuro"
+                        class="theme-opt-btn flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 border-flowly-border hover:border-flowly-primary transition">
+                        <div class="w-8 h-8 rounded-xl bg-slate-800 border border-slate-600 shadow-sm"></div>
+                        <span class="text-[10px] font-black text-slate-500">Escuro</span>
+                    </button>
+                    <button onclick="applyTheme('neutro')" id="themeBtnNeutro"
+                        class="theme-opt-btn flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 border-flowly-border hover:border-flowly-primary transition">
+                        <div class="w-8 h-8 rounded-xl bg-slate-300 border border-flowly-border shadow-sm"></div>
+                        <span class="text-[10px] font-black text-slate-500">Neutro</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="customPromptModal"
+    class="hidden fixed inset-0 z-[30000] bg-black/70 flex items-center justify-center p-6 backdrop-blur-md">
+    <div
+        class="bg-flowly-midnight border border-white/10 p-7 rounded-[2rem] w-full max-w-xs space-y-5 shadow-2xl animate-slide-up">
+        <div class="flex flex-col items-center gap-1">
+            <div class="w-10 h-10 rounded-full bg-flowly-primary/20 flex items-center justify-center mb-1">
+                <i data-lucide="plus-circle" class="w-5 h-5 text-flowly-primary"></i>
+            </div>
+            <h3 id="customPromptTitle" class="font-black text-base text-white text-center tracking-tight">Novo valor
+            </h3>
+            <p class="text-[10px] text-slate-400 font-semibold uppercase tracking-widest">Adicionar à lista</p>
+        </div>
+        <input type="text" id="customPromptInput" placeholder="Introduza o valor..."
+            class="w-full bg-white/10 text-white placeholder-slate-500 p-4 rounded-2xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary transition"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();_confirmCustomPrompt();}if(event.key==='Escape'){event.preventDefault();_cancelCustomPrompt();}">
+        <div class="flex gap-3">
+            <button type="button" onclick="_cancelCustomPrompt()"
+                class="flex-1 py-3 rounded-2xl font-bold text-slate-400 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">Cancelar</button>
+            <button type="button" onclick="_confirmCustomPrompt()"
+                class="flex-1 py-3 rounded-2xl font-black text-white bg-flowly-primary shadow-lg hover:bg-cyan-400 transition text-sm">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalPrivacy"
+    class="hidden fixed inset-0 z-[50000] bg-black/80 flex items-end justify-center p-4 backdrop-blur-md">
+    <div class="bg-white rounded-[2rem] w-full max-w-md shadow-2xl animate-slide-up mb-2 overflow-hidden">
+        <div class="bg-flowly-midnight px-6 pt-6 pb-4 flex items-start gap-3">
+            <div class="bg-cyan-500/20 p-2.5 rounded-xl flex-shrink-0"><i data-lucide="shield-check"
+                    class="w-5 h-5 text-flowly-primary"></i></div>
+            <div>
+                <h3 class="text-white font-black text-base">Privacidade & Proteção de Dados</h3>
+                <p class="text-slate-400 text-[10px] font-bold mt-0.5">Regulamento Geral de Proteção de Dados (RGPD)</p>
+            </div>
+        </div>
+        <div class="p-6 space-y-4 max-h-[50vh] overflow-y-auto">
+            <p class="text-xs text-slate-600 leading-relaxed">A <strong>Flowly 360</strong> trata os seus dados pessoais
+                de acordo com o <strong>RGPD (UE 2016/679)</strong> e a legislação portuguesa aplicável.</p>
+            <div class="space-y-3 text-xs text-slate-600">
+                <div class="flex gap-2"><span class="text-flowly-primary font-black">•</span><span><strong>Dados
+                            tratados:</strong> Email, nome, dados de colaboradores (NIF, vencimentos), registos
+                        financeiros e documentos da empresa.</span></div>
+                <div class="flex gap-2"><span
+                        class="text-flowly-primary font-black">•</span><span><strong>Finalidade:</strong> Prestação do
+                        serviço de gestão empresarial contratado.</span></div>
+                <div class="flex gap-2"><span
+                        class="text-flowly-primary font-black">•</span><span><strong>Armazenamento:</strong> Google
+                        Drive e Google Sheets associados à sua conta.</span></div>
+                <div class="flex gap-2"><span
+                        class="text-flowly-primary font-black">•</span><span><strong>Direitos:</strong> Acesso,
+                        retificação, apagamento e portabilidade dos seus dados. Contacte <a
+                            href="mailto:geral@flowly.pt"
+                            class="text-flowly-primary font-bold">geral@flowly.pt</a>.</span></div>
+                <div class="flex gap-2"><span
+                        class="text-flowly-primary font-black">•</span><span><strong>Conservação:</strong> Os dados são
+                        mantidos durante a vigência do contrato e eliminados 30 dias após rescisão.</span></div>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-relaxed">Ao clicar em "Aceitar", confirma que leu e aceita o
+                tratamento dos seus dados nos termos indicados.</p>
+        </div>
+        <div class="p-4 border-t border-slate-100 flex gap-3">
+            <button onclick="acceptPrivacy()"
+                class="flex-1 bg-flowly-primary text-white py-3.5 rounded-2xl font-black text-xs shadow-lg hover:bg-cyan-400 transition active:scale-95">Aceitar
+                e Continuar</button>
+            <button onclick="logout()"
+                class="py-3.5 px-5 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs hover:bg-slate-200 transition active:scale-95">Sair</button>
+        </div>
+    </div>
+</div>
+
+<!-- VIEWS DE SETUP & AUTENTICAÇÃO -->
+<div id="viewSetupPassword"
+    class="hidden fixed inset-0 z-[20001] bg-flowly-midnight flex flex-col items-center justify-center p-6 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]">
+    <div class="w-full max-w-sm space-y-6 animate-slide-up">
+        <div class="text-center">
+            <img src="https://i.postimg.cc/mrcDM13S/flowly-logo.jpg"
+                class="h-20 w-auto mx-auto rounded-2xl border-4 border-white/10 mb-4">
+            <h1 class="text-2xl font-black text-white tracking-tight">Definir Palavra-Passe</h1>
+            <p class="text-slate-400 text-sm mt-2">Ative o seu acesso à Flowly 360</p>
+        </div>
+        <form id="formSetupPassword" onsubmit="event.preventDefault(); submitSetupPassword();"
+            class="bg-white p-6 rounded-[2rem] shadow-2xl space-y-4">
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Nova Palavra-Passe</label>
+                <input id="setupPassword" type="password" placeholder="Mínimo 6 caracteres" minlength="6" required
+                    inputmode="text" style="-webkit-user-select: text !important; user-select: text !important;"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-flowly-primary/50 border border-flowly-border">
+            </div>
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Confirmar</label>
+                <input id="setupPassword2" type="password" placeholder="Repita a palavra-passe" minlength="6" required
+                    inputmode="text" style="-webkit-user-select: text !important; user-select: text !important;"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-flowly-primary/50 border border-flowly-border">
+            </div>
+            <p id="setupPasswordError" class="text-red-500 text-xs font-bold hidden"></p>
+            <button type="submit"
+                class="w-full bg-flowly-primary text-white py-4 rounded-xl font-black shadow-lg hover:bg-cyan-400 transition active:scale-95">ATIVAR
+                CONTA</button>
+        </form>
+    </div>
+</div>
+
+<div id="viewSetTeamPassword"
+    class="hidden fixed inset-0 z-[20001] bg-flowly-midnight flex flex-col items-center justify-center p-6 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]">
+    <div class="w-full max-w-sm space-y-6 animate-slide-up">
+        <div class="text-center">
+            <img src="https://i.postimg.cc/mrcDM13S/flowly-logo.jpg"
+                class="h-20 w-auto mx-auto rounded-2xl border-4 border-white/10 mb-4">
+            <h1 class="text-2xl font-black text-white tracking-tight">Definir Nova Password</h1>
+            <p class="text-slate-400 text-sm mt-2">Bem-vindo à equipa Flowly — define a tua password para aceder ao
+                Painel Admin</p>
+        </div>
+        <form id="formSetTeamPassword" onsubmit="event.preventDefault(); submitSetTeamPassword();"
+            class="bg-white p-6 rounded-[2rem] shadow-2xl space-y-4">
+            <input type="hidden" id="setTeamPasswordToken" value="">
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Nova Password</label>
+                <input id="setTeamPasswordInput" type="password" placeholder="Mínimo 6 caracteres" minlength="6"
+                    required inputmode="text"
+                    style="-webkit-user-select: text !important; user-select: text !important;"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-flowly-primary/50 border border-flowly-border">
+            </div>
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Confirmar</label>
+                <input id="setTeamPasswordInput2" type="password" placeholder="Repita a password" minlength="6" required
+                    inputmode="text" style="-webkit-user-select: text !important; user-select: text !important;"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-flowly-primary/50 border border-flowly-border">
+            </div>
+            <p id="setTeamPasswordError" class="text-red-500 text-xs font-bold hidden"></p>
+            <button type="submit"
+                class="w-full bg-flowly-primary text-white py-4 rounded-xl font-black shadow-lg hover:bg-cyan-400 transition active:scale-95">DEFINIR
+                PASSWORD</button>
+        </form>
+    </div>
+</div>
+
+<div id="authOverlay"
+    class="fixed inset-0 z-[20000] bg-flowly-midnight flex flex-col items-center justify-center p-6 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]">
+    <div class="w-full max-w-sm space-y-8 animate-slide-up relative">
+        <div class="text-center">
+            <img src="https://i.postimg.cc/mrcDM13S/flowly-logo.jpg"
+                class="h-24 w-auto mx-auto rounded-2xl shadow-glow mb-6 border-4 border-white/10">
+            <h1 class="text-3xl font-black text-white tracking-tight">Flowly 360</h1>
+        </div>
+
+        <form id="formLogin" onsubmit="event.preventDefault(); doLogin();"
+            class="bg-white p-8 rounded-[2rem] space-y-5 shadow-2xl relative z-10">
+            <h2 class="text-center font-bold text-xl text-flowly-midnight">Bem-vindo</h2>
+            <div class="space-y-4">
+                <input id="l_email" type="email" placeholder="Email"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-flowly-primary/50 transition border border-transparent">
+                <input id="l_pass" type="password" placeholder="Senha" inputmode="text"
+                    style="-webkit-user-select: text !important; user-select: text !important;"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-flowly-primary/50 transition border border-transparent">
+            </div>
+            <button type="submit"
+                class="w-full bg-flowly-primary text-white py-4 rounded-xl font-black shadow-lg hover:shadow-xl hover:bg-cyan-400 transition-all active:scale-95">ENTRAR</button>
+            <div class="flex justify-end text-[10px] text-slate-400 font-bold px-2">
+                <button type="button" onclick="document.getElementById('modalRecover').classList.remove('hidden')"
+                    class="hover:text-flowly-primary transition">Esqueci a senha</button>
+            </div>
+        </form>
+
+        <form id="formRegister" onsubmit="event.preventDefault(); doRegister();"
+            class="hidden bg-white p-8 rounded-[2rem] space-y-5 shadow-2xl relative z-10">
+            <h2 class="text-center font-bold text-xl text-flowly-midnight">Ativar Conta</h2>
+            <p class="text-xs text-center text-slate-400 mb-4">Insira o email onde recebeu o convite para definir a sua
+                senha.</p>
+            <div class="space-y-3">
+                <input id="r_email" type="email" placeholder="Email do Convite"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none border border-transparent focus:border-flowly-primary">
+                <input id="r_pass" type="password" placeholder="Nova Senha" inputmode="text"
+                    style="-webkit-user-select: text !important; user-select: text !important;"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none border border-transparent focus:border-flowly-primary">
+                <input id="r_pass2" type="password" placeholder="Confirmar Senha" inputmode="text"
+                    style="-webkit-user-select: text !important; user-select: text !important;"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none border border-transparent focus:border-flowly-primary">
+            </div>
+            <button type="submit"
+                class="w-full bg-flowly-midnight text-white py-4 rounded-xl font-black shadow-lg hover:bg-slate-800 transition">REGISTAR</button>
+            <div class="text-center text-[10px] text-slate-400 font-bold mt-4">
+                <button type="button" onclick="toggleAuth('login')" class="hover:text-flowly-primary">Voltar ao
+                    Login</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalRecover"
+        class="hidden fixed inset-0 z-[20005] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm">
+        <div class="bg-white p-6 rounded-[2rem] w-full max-w-sm space-y-4 animate-slide-up">
+            <h3 class="font-bold text-lg text-center">Recuperar Acesso</h3>
+            <p class="text-xs text-slate-400 text-center">Insira o seu email para receber um link de redefinição.</p>
+            <input id="rec_email" type="email" placeholder="O seu email"
+                class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none border focus:border-flowly-primary">
+            <div class="flex gap-2 pt-2">
+                <button onclick="recoverPass()"
+                    class="flex-1 bg-flowly-primary text-white py-3 rounded-xl font-bold shadow-lg">Enviar Link</button>
+                <button onclick="document.getElementById('modalRecover').classList.add('hidden')"
+                    class="flex-1 bg-slate-100 text-slate-500 py-3 rounded-xl font-bold hover:bg-slate-200">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================== -->
+<!-- O WRAPPER PRINCIPAL QUE SEGURA TODA A UI/VIEWS -->
+<!-- ============================================== -->
+<div id="appContent" class="hidden flex flex-col min-h-screen pt-6">
+
+    <!-- HEADER DA APLICAÇÃO -->
+    <header class="px-6 flex justify-between items-center mb-6 mt-4 relative">
+        <button onclick="openProfile()"
+            class="flex items-center gap-3 hover:opacity-80 transition cursor-pointer bg-transparent border-none p-0">
+            <div class="h-10 w-10 bg-cyan-100 rounded-full flex items-center justify-center font-black text-flowly-primary shadow-sm ring-2 ring-white"
+                id="userAvatar">U</div>
+            <div class="text-left">
+                <p class="text-xs font-black text-flowly-midnight" id="userNameDisplay">User</p>
+                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Gestor</p>
+            </div>
+        </button>
+        <img id="headerLogo" src="https://i.postimg.cc/mrcDM13S/flowly-logo.jpg"
+            class="absolute left-1/2 -translate-x-1/2 h-10 w-auto rounded-2xl border border-slate-100 shadow-md"
+            alt="Flowly">
+        <div class="flex items-center gap-2">
+            <button type="button" id="creditsDisplay" onclick="openCreditsModal()" role="button"
+                class="credits-pill flex flex-shrink-0 items-center gap-1 sm:gap-1.5 px-1.5 py-0.5 sm:px-2 sm:py-1 text-[10px] sm:text-xs font-bold rounded-full border transition-all duration-300 transition-transform bg-[#F8FAFC] border-flowly-border text-[#020617] cursor-pointer hover:scale-105">
+                <i data-lucide="sparkles" class="credits-display-icon w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0"
+                    aria-hidden="true"></i>
+                <span id="creditsDisplayLabel" class="hidden sm:inline">Créditos IA: </span>
+                <span id="creditsDisplayNumber">--</span>
+            </button>
+            <label class="flex items-center gap-1.5 flex-shrink-0 cursor-pointer"
+                title="Se ON: ao abrir o dashboard é feita análise completa (10 créditos). Se OFF: carrega a última análise guardada gratuitamente.">
+                <input type="checkbox" id="aiAutoToggle" class="sr-only peer" checked
+                    onchange="onAIAutoToggleChange(this)">
+                <span id="aiAutoTogglePill"
+                    class="pill-switch relative inline-flex h-5 w-9 flex-shrink-0 rounded-full bg-[#E2E8F0] transition-colors duration-200 peer-checked:bg-[#06B6D4]">
+                    <span
+                        class="pill-thumb absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200"></span>
+                </span>
+                <span id="aiAutoToggleLabel" class="text-[10px] font-medium text-slate-600 hidden sm:inline">Análise
+                    Auto ao Abrir</span>
+            </label>
+
+            <!-- Dropdown de visão — visível apenas para SuperAdmin -->
+            <div id="impersonateDropdownWrap" class="hidden relative">
+                <button id="btnImpersonateDrop" onclick="toggleImpersonateDrop(event)"
+                    class="flex items-center gap-1.5 px-3 py-2 bg-white border border-flowly-border rounded-xl shadow-sm hover:bg-slate-50 transition text-flowly-midnight active:scale-95">
+                    <i data-lucide="eye" class="w-4 h-4 text-flowly-primary flex-shrink-0"></i>
+                    <span id="impersonateDropLabel"
+                        class="text-[10px] font-black max-w-[70px] truncate leading-none">Visão Total</span>
+                    <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400 flex-shrink-0"></i>
+                </button>
+                <div id="impersonateDropMenu"
+                    class="hidden absolute right-0 top-full mt-2 w-56 bg-white border border-slate-100 rounded-2xl shadow-2xl z-[500] overflow-hidden animate-slide-up">
+                    <div onclick="exitImpersonateFromDrop()"
+                        class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 transition">
+                        <div class="w-6 h-6 bg-violet-50 rounded-lg flex items-center justify-center flex-shrink-0"><i
+                                data-lucide="layout-dashboard" class="w-3.5 h-3.5 text-flowly-primary"></i></div>
+                        <span class="text-[11px] font-black text-flowly-midnight">Visão Total (SaaS)</span>
+                    </div>
+                    <div id="impersonateClientsList" class="max-h-52 overflow-y-auto divide-y divide-slate-50"></div>
+                </div>
+            </div>
+            <button onclick="logout()"
+                class="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition shadow-sm"><i
+                    data-lucide="log-out" class="w-5 h-5"></i></button>
+        </div>
+    </header>
+
+    <!-- SIDEBAR DE NAVEGAÇÃO -->
+    <div id="appSidebar"
+        class="hidden fixed left-0 top-1/2 -translate-y-1/2 z-[100] flex flex-col gap-1 bg-white rounded-r-[1.5rem] shadow-xl border border-slate-100 border-l-0 py-3 px-2">
+        <button onclick="nav('home')" id="sideHome" data-tip="Início" class="sidebar-btn"><i data-lucide="home"
+                class="w-5 h-5"></i></button>
+        <button onclick="nav('dashboard')" id="sideDashboard" data-tip="Dashboard" class="sidebar-btn"><i
+                data-lucide="bar-chart-3" class="w-5 h-5"></i></button>
+        <button onclick="nav('logistica')" id="sideLogistica" data-tip="Logística" class="sidebar-btn"><i
+                data-lucide="package" class="w-5 h-5"></i></button>
+        <button onclick="nav('rh')" id="sideRh" data-tip="Colaboradores" class="sidebar-btn"><i data-lucide="users"
+                class="w-5 h-5"></i></button>
+        <button onclick="nav('cc')" id="sideCc" data-tip="Tesouraria" class="sidebar-btn"><i data-lucide="wallet"
+                class="w-5 h-5"></i></button>
+        <button onclick="nav('admin')" id="sideAdmin" data-tip="Acessos" class="sidebar-btn"><i data-lucide="shield"
+                class="w-5 h-5"></i></button>
+        <button onclick="nav('ia')" id="sideIa" data-tip="IA Insight" class="sidebar-btn"><i data-lucide="sparkles"
+                class="w-5 h-5"></i></button>
+        <button onclick="nav('exportacao')" id="sideExportacao" data-tip="Importação / Exportação"
+            class="sidebar-btn"><i data-lucide="arrow-right-left" class="w-5 h-5"></i></button>
+        <button onclick="nav('frota')" id="sideFrota" data-tip="Gestão de Frota" class="sidebar-btn"><i
+                data-lucide="truck" class="w-5 h-5"></i></button>
+        <button onclick="nav('condominios')" id="sideCondominios" data-tip="Gestão de Condomínios"
+            class="sidebar-btn hidden"><i data-lucide="building-2" class="w-5 h-5"></i></button>
+        <button onclick="nav('crm')" id="sideCrm" data-tip="CRM Clientes" class="sidebar-btn"><i
+                data-lucide="users-round" class="w-5 h-5"></i></button>
+        <button onclick="nav('fichas_tecnicas')" id="sideFichasTecnicas" data-tip="Fichas Técnicas" class="sidebar-btn"><i
+                data-lucide="file-spreadsheet" class="w-5 h-5"></i></button>
+    </div>
+
+    <div id="sideTooltip"
+        class="hidden fixed z-[300] pointer-events-none bg-flowly-midnight text-white text-[10px] font-black rounded-lg px-3 py-1.5 shadow-xl whitespace-nowrap">
+    </div>
+
+    <!-- MAIN: Container para onde vão ser injetadas todas as views pelo Index.html -->
+    <main id="appMain" class="flex-1 overflow-y-auto max-h-[calc(100vh-160px)] px-5 pb-20 space-y-6">
+        <!-- O Index.html vai injetar as Views aqui dentro e fechar a tag <main> no final -->
+    </main>
+</div>
+</div>

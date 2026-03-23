@@ -1,0 +1,442 @@
+<div id="view-cc-logistica">
+    <!-- VIEW: CONTA CORRENTE (TESOURARIA) -->
+    <div id="viewCC" class="view-section hidden space-y-6 animate-slide-up">
+        <div class="flex items-center gap-2 mb-4 cursor-pointer text-slate-500 hover:text-flowly-midnight transition"
+            onclick="nav('home')">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i><span
+                class="text-xs font-bold uppercase tracking-tight">Voltar</span>
+    <!-- Indicador de contexto em modo espião -->
+    <div id="ccContextBanner"
+        class="hidden mb-4 bg-flowly-warning/10 border border-amber-200 rounded-2xl px-4 py-2.5 flex items-center gap-2">
+        <i data-lucide="eye" class="w-4 h-4 text-amber-500 flex-shrink-0"></i>
+        <p class="text-[10px] font-black text-amber-700 uppercase tracking-wide">A ver tesouraria de: <span
+                id="ccContextName" class="text-amber-900"></span></p>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="bg-flowly-danger p-5 rounded-2xl shadow-xl text-white">
+            <p class="text-[9px] font-black opacity-80 uppercase tracking-widest">A pagar (Compras)</p>
+            <h2 id="ccTotalPagar" class="text-xl font-black mt-1 tracking-tighter">0,00 €</h2>
+        </div>
+        <div class="bg-[#10B981] p-5 rounded-2xl shadow-xl text-white">
+            <p class="text-[9px] font-black opacity-80 uppercase tracking-widest">A receber (Vendas)</p>
+            <h2 id="ccTotalReceber" class="text-xl font-black mt-1 tracking-tighter">0,00 €</h2>
+        </div>
+    </div>
+
+    <div class="flex gap-2 mb-4 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+        <button onclick="setCcFlow('Entradas')" id="tabCcFlowEntradas"
+            class="flex-1 py-3 rounded-xl text-[10px] font-black bg-flowly-midnight text-white shadow-md transition-all">COMPRAS
+            (A PAGAR)</button>
+        <button onclick="setCcFlow('Saidas')" id="tabCcFlowSaidas"
+            class="flex-1 py-3 rounded-xl text-[10px] font-black text-slate-400 dark:text-slate-500 hover:bg-white dark:hover:bg-slate-800 transition-all">VENDAS
+            (A RECEBER)</button>
+    </div>
+    <div class="flex gap-2 mb-6 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+        <button onclick="filterCcTab('Aberto')" id="tabCcAberto"
+            class="flex-1 py-3 rounded-xl text-[10px] font-black bg-flowly-midnight text-white shadow-md transition-all">EM
+            ABERTO</button>
+        <button onclick="filterCcTab('Pago')" id="tabCcPago"
+            class="flex-1 py-3 rounded-xl text-[10px] font-black text-slate-400 hover:bg-white transition-all">LIQUIDADAS</button>
+        <button onclick="filterCcTab('Todas')" id="tabCcTodas"
+            class="flex-1 py-3 rounded-xl text-[10px] font-black text-slate-400 hover:bg-white transition-all">VISÃO
+            TOTAL</button>
+    </div>
+
+    <div id="ccAvisosTopBar" class="hidden mb-4">
+        <button onclick="enviarAvisosMassivos()"
+            class="text-[#020617] px-5 py-2.5 rounded-2xl text-xs font-black uppercase shadow-lg transition active:scale-95 flex items-center gap-2 hover:brightness-95"
+            style="background-color:#FACC15"><i class="fas fa-paper-plane"></i> Enviar Avisos Selecionados</button>
+    </div>
+
+    <div id="ccList" class="space-y-3 pb-24 overflow-y-auto max-h-[60vh] scroll-smooth"></div>
+
+    <!-- Barra de Ações em Massa -->
+    <div id="ccBulkBar"
+        class="hidden fixed bottom-0 left-0 right-0 bg-[#020617] text-white px-6 py-4 shadow-lg flex items-center justify-between gap-4 rounded-t-2xl"
+        style="z-index: 9999">
+        <span id="ccBulkCount" class="text-sm font-bold">0 faturas selecionadas</span>
+        <span id="ccBulkTotal" class="text-sm font-bold">Total: 0,00 €</span>
+        <div class="flex gap-2">
+            <button id="ccBulkAvisosBtn" onclick="enviarAvisosMassivos()"
+                class="hidden text-[#020617] px-5 py-2.5 rounded-2xl text-xs font-black uppercase shadow-lg transition active:scale-95 flex items-center gap-2 hover:brightness-95"
+                style="background-color:#FACC15"><i class="fas fa-paper-plane"></i> Enviar Avisos Selecionados</button>
+            <button onclick="openBulkPaymentModal()"
+                class="bg-[#06B6D4] text-white px-6 py-2.5 rounded-2xl text-xs font-black uppercase shadow-lg transition active:scale-95">💰
+                Registar Pagamentos</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: VER ITENS DO DOCUMENTO -->
+<div id="modalCCItens"
+    class="hidden fixed inset-0 z-[5001] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm">
+    <div
+        class="bg-white dark:bg-slate-900 p-6 rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 dark:border-slate-700 max-h-[80vh] overflow-hidden flex flex-col">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-black text-lg text-flowly-midnight dark:text-slate-50">Itens do Documento</h3>
+            <button onclick="document.getElementById('modalCCItens').classList.add('hidden')"
+                class="p-2 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"><i data-lucide="x"
+                    class="w-5 h-5"></i></button>
+        </div>
+        <div id="modalCCItensList" class="overflow-y-auto flex-1 space-y-2 text-sm"></div>
+        <div class="pt-4 border-t border-slate-100 dark:border-slate-700 mt-4">
+            <button onclick="document.getElementById('modalCCItens').classList.add('hidden')"
+                class="w-full py-3 rounded-2xl font-bold bg-[#06B6D4] text-white hover:bg-cyan-500 transition">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CONFIRMAÇÃO PAGAMENTO EM MASSA -->
+<div id="modalBulkPayment"
+    class="hidden fixed inset-0 z-[5002] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm">
+    <div
+        class="bg-white dark:bg-slate-900 p-6 rounded-2xl w-full max-w-sm shadow-2xl border border-slate-100 dark:border-slate-700">
+        <h3 class="font-black text-xl text-flowly-midnight dark:text-slate-50 text-center mb-4">Registar Pagamento das
+            Selecionadas</h3>
+        <p id="modalBulkPaymentText" class="text-sm font-bold text-slate-600 dark:text-slate-300 text-center mb-4">A
+            registar pagamento de 0 faturas num total de 0,00 €</p>
+        <div class="mb-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total da seleção</p>
+            <p id="modalBulkTotalValue" class="text-xl font-black text-[#06B6D4] mt-1">0,00 €</p>
+        </div>
+        <div class="mb-4">
+            <label class="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Data de
+                Pagamento</label>
+            <input id="bulkPay_data" type="date"
+                class="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl font-bold text-sm outline-none border-2 border-transparent focus:border-[#06B6D4] text-flowly-midnight dark:text-slate-50 mt-1">
+        </div>
+        <div class="flex gap-3">
+            <button onclick="closeBulkPaymentModal()"
+                class="flex-1 py-3 rounded-2xl font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition">Cancelar</button>
+            <button onclick="confirmBulkPayment()"
+                class="flex-1 py-3 rounded-2xl font-black text-white bg-[#06B6D4] shadow-lg hover:bg-cyan-500 transition">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: REGISTAR PAGAMENTO INDIVIDUAL -->
+<div id="modalPayment"
+    class="hidden fixed inset-0 z-[5000] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm">
+    <div
+        class="bg-white p-8 rounded-[2rem] w-full max-w-sm space-y-6 shadow-2xl animate-slide-up border border-slate-100">
+        <h3 class="font-black text-xl text-flowly-midnight text-center tracking-tight">Registar Pagamento</h3>
+        <input type="hidden" id="pay_rowIndex">
+        <input type="hidden" id="pay_maxPendente">
+
+        <div class="space-y-4">
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Valor a Pagar
+                    (€)</label>
+                <input id="pay_valor" type="number" step="0.01" placeholder="Ex: 150.00"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-lg outline-none border-2 border-transparent focus:border-flowly-primary transition text-flowly-midnight"
+                    oninput="validatePaymentAmount()">
+                <p id="pay_warning" class="text-[10px] font-bold text-amber-500 mt-2 ml-2 hidden">⚠️ Parcial: Restará
+                    <span id="pay_restante"></span> €</p>
+                <p id="pay_error" class="text-[10px] font-bold text-rose-500 mt-2 ml-2 hidden">🚨 Erro: O valor excede o
+                    pendente!</p>
+            </div>
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Data do
+                    Pagamento</label>
+                <input id="pay_data" type="text" placeholder="DD/MM/AAAA"
+                    class="w-full bg-slate-50 p-4 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary transition text-flowly-midnight"
+                    oninput="this.value=this.value.replace(/[^\d\/]/g,'').replace(/^(\d{2})(\d)$/,'$1/$2').replace(/^(\d{2}\/\d{2})(\d)$/,'$1/$2')"
+                    onblur="validateDate(this)">
+            </div>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+            <button onclick="document.getElementById('modalPayment').classList.add('hidden')"
+                class="flex-1 py-4 rounded-xl font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition">Cancelar</button>
+            <button onclick="confirmPayment()" id="btnConfirmPay"
+                class="flex-[2] py-4 rounded-xl font-black text-white bg-flowly-primary shadow-lg hover:shadow-cyan-500/30 transition">CONFIRMAR</button>
+        </div>
+    </div>
+</div>
+
+<!-- VIEW: LOGÍSTICA (SCANNER & MANUAL) -->
+<div id="viewLogistica" class="view-section hidden animate-slide-up">
+    <div class="flex items-center gap-2 mb-4 cursor-pointer text-slate-500 hover:text-flowly-midnight transition"
+        onclick="nav('home')">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i><span class="text-xs font-bold">Voltar</span>
+    </div>
+
+    <div class="flex gap-2 mb-6">
+        <button id="btnModoDoc" onclick="setMode('doc')"
+            class="flex-1 py-3 rounded-xl text-[10px] font-bold bg-flowly-midnight text-white text-center shadow-md transition-all">SCANNER
+            AI</button>
+        <button id="btnModoMulti" onclick="setMode('multi')"
+            class="flex-1 py-3 rounded-xl text-[10px] font-bold bg-white text-slate-500 text-center border hover:bg-slate-50 transition-all">LONGO</button>
+        <button id="btnModoManual" onclick="setMode('manual')"
+            class="flex-1 py-3 rounded-xl text-[10px] font-bold bg-white text-slate-500 text-center border hover:bg-slate-50 transition-all">MANUAL</button>
+    </div>
+
+    <div id="docModule" class="flex flex-col gap-6 animate-slide-up">
+        <div class="relative group cursor-pointer active:scale-[0.98] transition-transform duration-300">
+            <input type="file" id="fileInput" accept="image/*,application/pdf"
+                class="absolute inset-0 w-full h-full opacity-0 z-50 cursor-pointer"
+                onchange="handleInvoiceUpload(event)">
+            <div
+                class="bg-flowly-midnight rounded-[3.5rem] aspect-[4/3] flex flex-col items-center justify-center shadow-2xl relative overflow-hidden">
+                <div
+                    class="bg-flowly-primary/10 p-8 rounded-full border border-flowly-primary/30 scanner-pulse relative z-10">
+                    <i data-lucide="camera" class="w-16 h-16 text-white"></i>
+                </div>
+                <div class="text-center mt-4 relative z-10">
+                    <p class="text-xl font-black text-white tracking-tight">Capturar Doc</p>
+                    <p class="text-[10px] text-slate-400 mt-1">Toque para abrir a câmara</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="multiModule" class="hidden animate-slide-up space-y-4">
+        <div class="bg-white p-10 rounded-[2.5rem] border-2 border-dashed border-flowly-border text-center text-slate-400">
+            <i data-lucide="layers" class="mx-auto mb-4 opacity-20 w-12 h-12"></i>
+            <p class="text-xs font-black uppercase tracking-widest">Scanner Multi-Página</p>
+            <p class="text-[10px] mt-1">Carregue várias imagens em sequência.</p>
+        </div>
+    </div>
+
+    <div id="manualModule" class="hidden animate-slide-up space-y-4">
+        <div class="bg-white p-10 rounded-[2.5rem] border-2 border-dashed border-flowly-border text-center text-slate-400">
+            <i data-lucide="edit-3" class="mx-auto mb-4 opacity-20 w-12 h-12"></i>
+            <p class="text-xs font-black uppercase tracking-widest">Introdução Manual</p>
+            <p class="text-[10px] mt-1">Preencha os dados sem usar a IA.</p>
+        </div>
+    </div>
+
+    <div id="loadingUI" class="hidden flex flex-col items-center justify-center py-20 space-y-4">
+        <div class="w-16 h-16 border-[6px] border-slate-100 border-t-flowly-primary rounded-full animate-spin"></div>
+        <p id="loadingCounter" class="text-xs font-bold text-flowly-primary animate-pulse">A processar dados (1/1)...
+        </p>
+        <p class="text-xs font-bold text-flowly-primary animate-pulse">A analisar com Gemini AI...</p>
+    </div>
+
+    <div id="validationForm" class="hidden flex flex-col gap-6 pb-20 mt-4 animate-slide-up">
+        <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-50">
+            <form id="dataForm" class="flex flex-col gap-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Tipo de Lançamento</label>
+                        <select id="f_tipo"
+                            class="w-full bg-slate-50 p-4 rounded-xl text-sm font-bold outline-none text-flowly-midnight border-r-8 border-transparent mt-1"
+                            onchange="updateTipoLancamento('f'); updateValidationTotal()">
+                            <option value="Entrada">Entrada</option>
+                            <option value="Saída">Saída</option>
+                            <option value="Quebra">Quebra</option>
+                            <option value="Oferta">Oferta</option>
+                            <option value="Despesas">Despesas</option>
+                            <option value="Fecho de caixa/Relatório">Fecho de caixa/Relatório</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Data (DD/MM/AAAA)</label>
+                        <input id="f_data" type="text" maxlength="10" placeholder="DD/MM/AAAA"
+                            class="w-full bg-slate-50 p-4 rounded-xl text-sm font-bold outline-none text-flowly-midnight mt-1"
+                            oninput="this.value=this.value.replace(/[^\d\/]/g,'').replace(/^(\d{2})(\d)$/,'$1/$2').replace(/^(\d{2}\/\d{2})(\d)$/,'$1/$2')"
+                            onblur="validateDate(this)">
+                    </div>
+                </div>
+                <div id="f_blocoFornecedorCliente" class="flex flex-col gap-2">
+                    <label id="f_labelFornecedorCliente"
+                        class="text-[10px] font-black text-slate-400 uppercase ml-2">Fornecedor</label>
+                    <div class="flex gap-2">
+                        <input id="f_fornecedor" list="listaFornecedores"
+                            class="bg-slate-50 p-4 rounded-xl text-sm font-bold w-full outline-none text-flowly-midnight"
+                            placeholder="Fornecedor" onblur="validateDatalistFornecedorCliente('f')">
+                        <button type="button" id="f_btnAddFornecedorCliente"
+                            onclick="showPrompt('Novo Fornecedor', 'listaFornecedores', 'f_fornecedor')"
+                            class="bg-flowly-primary text-white px-5 rounded-xl font-bold shadow-md active:scale-95 transition text-lg">+</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Fatura Paga?</label>
+                        <select id="f_ja_paga"
+                            class="w-full bg-slate-50 p-4 rounded-xl text-sm font-bold outline-none text-flowly-midnight mt-1"
+                            onchange="toggleFDataPagamento()">
+                            <option value="0">Não</option>
+                            <option value="1">Sim</option>
+                        </select>
+                    </div>
+                    <label
+                        class="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl cursor-pointer border border-slate-100">
+                        <input type="checkbox" id="f_stock" class="w-5 h-5 accent-flowly-primary rounded" checked>
+                        <span class="text-sm font-bold text-flowly-midnight">Contar para Stock?</span>
+                    </label>
+                </div>
+                <div id="f_bloco_data_pagamento" class="hidden grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Data do pagamento
+                            (DD/MM/AAAA)</label>
+                        <input id="f_data_pagamento" type="text" maxlength="10" placeholder="DD/MM/AAAA"
+                            class="w-full bg-slate-50 p-4 rounded-xl text-sm font-bold outline-none text-flowly-midnight mt-1"
+                            oninput="this.value=this.value.replace(/[^\d\/]/g,'').replace(/^(\d{2})(\d)$/,'$1/$2').replace(/^(\d{2}\/\d{2})(\d)$/,'$1/$2')">
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div id="artigosContainer" class="flex flex-col gap-3"></div>
+        <button onclick="addArtigoRow()"
+            class="text-xs font-bold text-flowly-primary text-center py-2 hover:bg-cyan-50 rounded-lg transition">+
+            Adicionar Linha</button>
+
+        <div id="validationSummary" class="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
+            <div class="flex justify-between items-center text-sm font-bold">
+                <span class="text-slate-500">Soma dos Itens (com IVA):</span>
+                <span id="validationSomaArtigos" class="text-flowly-midnight">0.00 €</span>
+            </div>
+            <div class="flex justify-between items-center gap-2">
+                <span class="text-slate-500 text-sm font-bold">Total da Fatura:</span>
+                <input id="validationTotalDoc" type="number" step="0.01" placeholder="0.00"
+                    class="w-24 p-2 rounded-lg text-sm font-bold border-2 text-right" oninput="updateValidationTotal()">
+                <span class="text-sm font-bold">€</span>
+            </div>
+            <p id="validationTotalStatus" class="text-[10px] font-bold hidden"></p>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+            <button onclick="cancelarRegisto()"
+                class="flex-1 bg-slate-100 text-slate-500 py-4 rounded-xl font-bold hover:bg-slate-200 transition">Cancelar</button>
+            <button onclick="submitLogistica()" id="saveBtn"
+                class="flex-[2] bg-flowly-primary text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-cyan-500/30 transition">GUARDAR</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: VALIDAÇÃO FATURA OCR -->
+<div id="modalInvoiceValidation"
+    class="hidden fixed inset-0 z-[6000] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm">
+    <div
+        class="bg-white p-8 rounded-[2rem] w-full max-w-lg space-y-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto animate-slide-up">
+
+        <div class="text-center">
+            <div
+                class="bg-cyan-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyan-100">
+                <i data-lucide="check-square" class="w-8 h-8 text-flowly-primary"></i>
+            </div>
+            <h3 id="iv_modal_title" class="font-black text-xl text-flowly-midnight">Validar Fatura</h3>
+            <p id="iv_modal_subtitle" class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                Confirme e corrija os dados antes de gravar. Pode editar todos os campos.</p>
+        </div>
+
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Fornecedor</label>
+                    <input id="iv_forn"
+                        class="w-full bg-slate-50 p-3.5 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary text-flowly-midnight">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">NIF</label>
+                    <input id="iv_nif"
+                        class="w-full bg-slate-50 p-3.5 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary text-flowly-midnight transition-colors"
+                        oninput="(function(el){ 
+                            el.classList.remove('border-rose-500','border-emerald-500'); 
+                            var nifWarning = document.getElementById('iv_nif_warning'); 
+                            var v = el.value.replace(/\D/g,''); 
+                            if(v.length === 9){ 
+                                if(!validateNIF(v)){ 
+                                    el.classList.add('border-rose-500'); 
+                                    if(nifWarning) nifWarning.classList.remove('hidden'); 
+                                } else { 
+                                    el.classList.add('border-emerald-500'); 
+                                    if(nifWarning) nifWarning.classList.add('hidden'); 
+                                } 
+                            } else { 
+                                if(nifWarning) nifWarning.classList.add('hidden'); 
+                            } 
+                        })(this)">
+                    <p id="iv_nif_warning" class="hidden text-[10px] font-bold text-rose-500 mt-1 ml-2">⚠ NIF Inválido (Checksum falhou)</p>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Data (DD/MM/AAAA)</label>
+                    <input id="iv_data"
+                        class="w-full bg-slate-50 p-3.5 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary text-flowly-midnight">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Tipo de Lançamento</label>
+                    <select id="iv_tipo"
+                        class="w-full bg-slate-50 p-3.5 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary text-flowly-midnight"
+                        onchange="onIvTipoChange(); updateValidationTotal()">
+                        <option value="Entrada">Entrada</option>
+                        <option value="Saída">Saída</option>
+                        <option value="Quebra">Quebra</option>
+                        <option value="Oferta">Oferta</option>
+                        <option value="Despesas">Despesas</option>
+                        <option value="Fecho de caixa/Relatório">Fecho de caixa/Relatório</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Fatura Paga?</label>
+                    <select id="iv_ja_paga"
+                        class="w-full bg-slate-50 p-3.5 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary text-flowly-midnight"
+                        onchange="toggleIvDataPagamento()">
+                        <option value="0">Não (Aberto)</option>
+                        <option value="1">Sim (Pago)</option>
+                    </select>
+                </div>
+                <div>
+                    <label
+                        class="flex items-center gap-3 p-3.5 bg-slate-50 rounded-xl cursor-pointer border border-slate-100">
+                        <input type="checkbox" id="iv_stock" class="w-5 h-5 accent-flowly-primary rounded" checked>
+                        <span class="text-sm font-bold text-flowly-midnight">Contar para Stock?</span>
+                    </label>
+                </div>
+            </div>
+            <div id="iv_bloco_data_pagamento" class="hidden grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Data do pagamento
+                        (DD/MM/AAAA)</label>
+                    <input id="iv_data_pagamento" type="text" maxlength="10" placeholder="DD/MM/AAAA"
+                        class="w-full bg-slate-50 p-3.5 rounded-xl font-bold text-sm outline-none border-2 border-transparent focus:border-flowly-primary text-flowly-midnight"
+                        oninput="this.value=this.value.replace(/[^\d\/]/g,'').replace(/^(\d{2})(\d)$/,'$1/$2').replace(/^(\d{2}\/\d{2})(\d)$/,'$1/$2')">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Valor pago (€)</label>
+                    <input id="iv_valor_pago" type="number" step="0.01" readonly
+                        class="w-full bg-slate-100 p-3.5 rounded-xl font-bold text-sm text-flowly-midnight"
+                        placeholder="Total">
+                </div>
+            </div>
+            <p id="iv_erro_valor_pago" class="hidden text-[10px] font-bold text-rose-500 ml-2">O valor pago não pode ser
+                superior ao total do documento.</p>
+            <div class="border-t border-slate-100 pt-4">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Linhas da fatura
+                        (artigo a artigo)</span>
+                    <button type="button" onclick="addInvoiceLineRow()"
+                        class="text-[10px] font-bold text-flowly-primary hover:underline">+ Adicionar linha</button>
+                </div>
+                <div class="overflow-x-auto rounded-xl">
+                    <div id="iv_linhas_container" class="space-y-2 min-w-[640px] max-h-[260px] overflow-y-auto pr-1"></div>
+                </div>
+            </div>
+            <div id="iv_validationSummary" class="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
+                <div class="flex justify-between items-center text-sm font-bold">
+                    <span class="text-slate-500">Soma dos Itens (com IVA):</span>
+                    <span id="iv_somaArtigos" class="text-flowly-midnight">0.00 €</span>
+                </div>
+                <div class="flex justify-between items-center gap-2">
+                    <span class="text-slate-500 text-sm font-bold">Total da Fatura:</span>
+                    <input id="iv_totalDoc" type="number" step="0.01" placeholder="0.00"
+                        class="w-24 p-2 rounded-lg text-sm font-bold border-2 text-right"
+                        oninput="updateValidationTotal()">
+                    <span class="text-sm font-bold">€</span>
+                </div>
+                <p id="iv_totalStatus" class="text-[10px] font-bold hidden"></p>
+            </div>
+        </div>
+
+        <div class="flex gap-3 pt-4 border-t border-slate-50">
+            <button onclick="cancelInvoiceValidation()"
+                class="flex-1 py-4 rounded-xl font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition">Cancelar</button>
+            <button onclick="confirmInvoiceValidation()" id="btnConfirmInvoiceValidation"
+                class="flex-[2] py-4 rounded-xl font-black text-white bg-flowly-primary shadow-lg hover:shadow-cyan-500/30 transition">Guardar</button>
+        </div>
+    </div>
+</div>
+</div>

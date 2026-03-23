@@ -1,0 +1,440 @@
+(function(window, document, undefined) {
+    // ==========================================
+    // MÓDULO DE IMPORTAÇÃO E EXPORTAÇÃO
+    // (A Lógica da IA do Dashboard foi movida para JS_Dashboard.html)
+    // ==========================================
+
+    const FLOWLY_STOCK_FIELDS = ["data", "artigo", "categoria", "quantidade", "preco_custo", "preco_venda", "taxa_iva", "valor_iva", "fornecedor", "observacoes", "tipo", "metodo", "dedutivel", "validado", "status", "data_pag", "valor_pago", "conta_stock"];
+    let _pendingCSVFullText = "";
+    let _pendingCSVHeaders = [];
+    let _pendingCSVSeparator = ";";
+
+    /**
+     * Alterna entre os separadores (tabs) de Exportação e Importação no módulo de IA/Exportação.
+     * @param {string} tab - 'export' ou 'import'
+     */
+    function switchDataTab(tab) {
+        const btnExport = document.getElementById('tabBtnExport');
+        const btnImport = document.getElementById('tabBtnImport');
+        const contentExport = document.getElementById('contentExportacao');
+        const contentImport = document.getElementById('contentImportacao');
+
+        if (!btnExport || !btnImport || !contentExport || !contentImport) return;
+
+        if (tab === 'export') {
+            // Estilo Ativo: Exportação
+            btnExport.className = "px-5 py-2.5 rounded-xl text-sm font-bold bg-[#06B6D4] text-white transition";
+            btnImport.className = "px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-slate-500 hover:bg-slate-50 border border-flowly-border transition";
+            
+            contentExport.classList.remove('hidden');
+            contentImport.classList.add('hidden');
+        } else {
+            // Estilo Ativo: Importação
+            btnImport.className = "px-5 py-2.5 rounded-xl text-sm font-bold bg-[#06B6D4] text-white transition";
+            btnExport.className = "px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-slate-500 hover:bg-slate-50 border border-flowly-border transition";
+            
+            contentExport.classList.add('hidden');
+            contentImport.classList.remove('hidden');
+        }
+        if (window.lucide) lucide.createIcons();
+    }
+
+    /**
+     * Envia mensagem para o Chat CFO (IA) e exibe a resposta no contentor de mensagens.
+     */
+    function sendAIChat() {
+        const input = document.getElementById('aiChatInput');
+        const container = document.getElementById('aiChatMessages');
+        if (!input || !container || !input.value.trim()) return;
+
+        const userMsg = input.value.trim();
+        input.value = '';
+
+        // Adicionar mensagem do utilizador à UI
+        const userDiv = document.createElement('div');
+        userDiv.className = 'flex justify-end mb-2';
+        userDiv.innerHTML = '<div class="bg-[#06B6D4] text-white p-3 rounded-2xl rounded-tr-none text-xs font-bold max-w-[80%] shadow-sm">' + userMsg.replace(/</g, '&lt;') + '</div>';
+        container.appendChild(userDiv);
+        container.scrollTop = container.scrollHeight;
+
+        // Adicionar indicador de "a pensar"
+        const typingDiv = document.createElement('div');
+        typingDiv.id = 'aiTyping';
+        typingDiv.className = 'flex justify-start mb-2';
+        typingDiv.innerHTML = '<div class="bg-slate-100 dark:bg-slate-700 p-3 rounded-2xl rounded-tl-none text-[10px] text-slate-500 font-bold animate-pulse">CFO a analisar...</div>';
+        container.appendChild(typingDiv);
+        container.scrollTop = container.scrollHeight;
+
+        google.script.run
+            .withFailureHandler(err => {
+                if (typingDiv) typingDiv.remove();
+                if (window.notify) notify(err || 'Erro ao conversar com o CFO.', 'error');
+            })
+            .withSuccessHandler(res => {
+                if (typingDiv) typingDiv.remove();
+                
+                const aiDiv = document.createElement('div');
+                aiDiv.className = 'flex justify-start mb-2';
+                const text = res && res.resposta ? res.resposta : (res && res.error ? res.error : 'Sem resposta do CFO.');
+                aiDiv.innerHTML = '<div class="bg-white dark:bg-slate-800 border border-flowly-border dark:border-slate-700 p-3 rounded-2xl rounded-tl-none text-xs font-medium text-slate-800 dark:text-slate-100 shadow-sm max-w-[90%] whitespace-pre-wrap">' + text.replace(/</g, '&lt;') + '</div>';
+                container.appendChild(aiDiv);
+                container.scrollTop = container.scrollHeight;
+                
+                if (typeof fetchCredits === 'function') fetchCredits();
+            })
+            .chatWithCFO(userMsg, window.currentAiInsight || null, _ctxEmail());
+    }
+
+    function checkUnmappedItems() {
+        const card = document.getElementById('btnModExportacao');
+        if (!card) return;
+        const existingBadge = card.querySelector('.export-unmapped-badge');
+        if (existingBadge) existingBadge.remove();
+        google.script.run
+            .withFailureHandler(() => { })
+            .withSuccessHandler(function (res) {
+                if (res && res.count > 0) {
+                    const badge = document.createElement('span');
+                    badge.className = 'export-unmapped-badge absolute -top-2 -right-2 bg-flowly-danger text-white text-xs font-bold px-2 py-1 rounded-full shadow-md';
+                    badge.textContent = res.count + ' Pendentes';
+                    card.appendChild(badge);
+                }
+            }).getUnmappedItems(_ctxEmail());
+    }
+
+    function handleConectarSistema() {
+        const btn = document.getElementById('btnConectarSistema');
+        const iconEl = btn ? btn.querySelector('.btn-conectar-icon') : null;
+        const textEl = btn ? btn.querySelector('.btn-conectar-text') : null;
+
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('opacity-70');
+            if (textEl) textEl.textContent = 'A carregar...';
+            if (iconEl) {
+                iconEl.setAttribute('data-lucide', 'loader');
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+
+        google.script.run
+            .withFailureHandler(function (err) {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-70');
+                    if (textEl) textEl.textContent = 'Conectar Sistema';
+                    if (iconEl) {
+                        iconEl.setAttribute('data-lucide', 'link');
+                        if (window.lucide) lucide.createIcons();
+                    }
+                }
+                if (window.notify) notify(err || 'Erro ao conectar.', 'error');
+                else alert(err || 'Erro ao conectar.');
+            })
+            .withSuccessHandler(function (res) {
+                if (res && res.success && res.authUrl) {
+                    window.open(res.authUrl, '_blank');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-70');
+                        if (textEl) textEl.textContent = 'Conectar Sistema';
+                        if (iconEl) {
+                            iconEl.setAttribute('data-lucide', 'link');
+                            if (window.lucide) lucide.createIcons();
+                        }
+                    }
+                    if (window.notify) notify("A abrir a página segura da Sage noutro separador...", "success");
+                } else {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-70');
+                        if (textEl) textEl.textContent = 'Conectar Sistema';
+                        if (iconEl) {
+                            iconEl.setAttribute('data-lucide', 'link');
+                            if (window.lucide) lucide.createIcons();
+                        }
+                    }
+                    if (window.notify) notify(res?.error || 'Erro ao conectar.', 'error');
+                    else alert(res?.error || 'Erro ao conectar.');
+                }
+            }).startOAuthFlow();
+    }
+
+    function handleExport() {
+        const dataInicio = document.getElementById('exportDataInicio')?.value?.trim();
+        const dataFim = document.getElementById('exportDataFim')?.value?.trim();
+        const template = document.getElementById('exportTemplate')?.value?.trim();
+
+        if (!dataInicio || !dataFim || !template) {
+            if (window.notify) notify('Preencha Data Início, Data Fim e Template.', 'warning');
+            return;
+        }
+
+        const dataInicioPT = typeof dateInputToPT === 'function' ? dateInputToPT(dataInicio) : dataInicio;
+        const dataFimPT = typeof dateInputToPT === 'function' ? dateInputToPT(dataFim) : dataFim;
+
+        google.script.run
+            .withFailureHandler(err => { if (window.notify) notify(err || 'Erro na verificação.', 'error'); })
+            .withSuccessHandler(function (res) {
+                if (!res) return;
+                if (res.ok === false && res.missing && res.missing.length > 0) {
+                    openMapeamentoModal(res.missing, true);
+                    return;
+                }
+                if (res.ok === true) {
+                    google.script.run
+                        .withFailureHandler(err => { if (window.notify) notify(err || 'Erro ao gerar ficheiro.', 'error'); })
+                        .withSuccessHandler(function (fileRes) {
+                            if (!fileRes || !fileRes.success || !fileRes.base64) {
+                                if (window.notify) notify(fileRes?.error || 'Erro ao gerar ficheiro.', 'error');
+                                return;
+                            }
+                            try {
+                                const bin = atob(fileRes.base64);
+                                const arr = new Uint8Array(bin.length);
+                                for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+                                const blob = new Blob([arr], { type: fileRes.mimeType || 'text/csv' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = fileRes.filename || 'export.csv';
+                                a.click();
+                                URL.revokeObjectURL(url);
+                                if (window.notify) notify('Ficheiro exportado com sucesso.', 'success');
+                            } catch (e) {
+                                if (window.notify) notify('Erro ao descarregar ficheiro.', 'error');
+                            }
+                        }).generateAccountingFile(dataInicioPT, dataFimPT, template, _ctxEmail());
+                }
+            }).verifyMappingForExport(dataInicioPT, dataFimPT, _ctxEmail());
+    }
+
+    function confirmClearMappings() {
+        if (!confirm('Tem a certeza que deseja apagar todas as configurações de mapeamento? Esta ação não pode ser desfeita.')) return;
+        google.script.run
+            .withFailureHandler(err => { if (window.notify) notify(err || 'Erro ao limpar.', 'error'); })
+            .withSuccessHandler(function (res) {
+                if (res && res.success) {
+                    if (window.notify) notify('Mapeamentos limpos com sucesso.', 'success');
+                    if (typeof checkUnmappedItems === 'function') checkUnmappedItems();
+                } else {
+                    if (window.notify) notify(res?.error || 'Erro ao limpar.', 'error');
+                }
+            }).clearMappings(_ctxEmail());
+    }
+
+    function openMapeamentoModal(items, showBanner) {
+        const modal = document.getElementById('modalMapeamentoContas');
+        const banner = document.getElementById('modalMapeamentoBanner');
+        const tbody = document.getElementById('modalMapeamentoTbody');
+        if (!modal || !tbody) return;
+
+        if (banner) banner.classList.toggle('hidden', !showBanner);
+        const list = Array.isArray(items) && items.length > 0 ? items : [];
+
+        tbody.innerHTML = list.map(function (item) {
+            const inputClass = 'w-full bg-white border p-3 rounded-xl font-bold text-sm text-[#020617] outline-none focus:ring-2 focus:ring-[#06B6D4]/30 placeholder:text-[#64748B]' + (showBanner ? ' border-red-500 ring-2 ring-red-500' : ' border-flowly-border');
+            return '<tr class="border-b border-flowly-border"><td class="py-4 px-4 text-[#020617] font-bold">' + (item || '').replace(/</g, '&lt;') + '</td><td class="py-4 px-4"><input type="text" list="snc-accounts-datalist" data-artigo="' + (item || '').replace(/" /g, '&quot;') + '" placeholder="Pesquisar conta ou artigo..." class="' + inputClass + '"></td></tr>';
+        }).join('');
+
+        modal.classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function saveMapeamentoFromModal() {
+        const tbody = document.getElementById('modalMapeamentoTbody');
+        if (!tbody) return;
+        const inputs = tbody.querySelectorAll('input[data-artigo]');
+        const mappingData = [];
+
+        for (let i = 0; i < inputs.length; i++) {
+            const inp = inputs[i];
+            const artigo = (inp.getAttribute('data-artigo') || '').trim();
+            const conta = (inp.value || '').trim();
+            if (artigo && conta) mappingData.push({ artigoFlowly: artigo, contaSoftware: conta });
+        }
+
+        if (mappingData.length === 0) {
+            if (window.notify) notify('Preencha pelo menos um mapeamento.', 'warning');
+            return;
+        }
+
+        google.script.run
+            .withFailureHandler(err => { if (window.notify) notify(err || 'Erro ao guardar.', 'error'); })
+            .withSuccessHandler(function (res) {
+                if (res && res.success) {
+                    document.getElementById('modalMapeamentoContas').classList.add('hidden');
+                    checkUnmappedItems();
+                    if (window.notify) notify('Mapeamento guardado com sucesso.', 'success');
+                } else {
+                    if (window.notify) notify(res?.error || 'Erro ao guardar.', 'error');
+                }
+            }).saveMapping(mappingData, _ctxEmail());
+    }
+
+    function downloadStockTemplate() {
+        const headers = ["Artigo", "Categoria", "Quantidade", "Preço Custo", "Fornecedor"];
+        const bom = "\uFEFF";
+        const csv = bom + headers.join(";") + "\r\n";
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "template_inventario.csv";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function closeModalImportarStock() {
+        const modal = document.getElementById("modalImportarStock");
+        if (modal) modal.classList.add("hidden");
+
+        const imp = document.getElementById("importFile");
+        if (imp) imp.value = "";
+
+        const step1 = document.getElementById("modalImportarStockStep1");
+        if (step1) step1.classList.remove("hidden");
+
+        const loader = document.getElementById("modalImportarStockLoader");
+        if (loader) loader.classList.add("hidden");
+
+        const mapping = document.getElementById("modalImportarStockMapping");
+        if (mapping) mapping.classList.add("hidden");
+
+        const btnConf = document.getElementById("btnModalImportarConfirmar");
+        if (btnConf) btnConf.classList.add("hidden");
+
+        _pendingCSVFullText = "";
+        _pendingCSVHeaders = [];
+    }
+
+    function showImportMappingUI(aiMapping) {
+        var savedAll = {};
+        try { savedAll = JSON.parse(localStorage.getItem("flowly_csv_header_mapping") || "{}"); } catch (e) { }
+
+        var key = _pendingCSVHeaders.join("|");
+        var savedMapping = savedAll[key] || {};
+        const tbody = document.getElementById("modalImportarStockMappingBody");
+        if (!tbody) return;
+
+        tbody.innerHTML = "";
+        _pendingCSVHeaders.forEach(function (h) {
+            const tr = document.createElement("tr");
+            tr.className = "border-t border-flowly-border";
+
+            var val = savedMapping[h] !== undefined ? savedMapping[h] : (savedMapping[h.trim()] !== undefined ? savedMapping[h.trim()] : null);
+            if (!val) val = aiMapping[h] !== undefined ? aiMapping[h] : (aiMapping[h.trim()] !== undefined ? aiMapping[h.trim()] : null);
+
+            // Algumas inferências base se falhar
+            if (!val && /^(tipo|type|movimento)$/i.test((h || "").trim())) val = "tipo";
+            if (!val && /^(data|date|data\s*documento|data\s*movimento)$/i.test((h || "").trim())) val = "data";
+            if (!val && /^(metodo|m[eé]todo|forma\s*pagamento)$/i.test((h || "").trim())) val = "metodo";
+            if (!val && /^(dedutivel|dedut[ií]vel|iva\s*dedut[ií]vel)$/i.test((h || "").trim())) val = "dedutivel";
+            if (!val && /^(validado|estado\s*valida[cç][aã]o)$/i.test((h || "").trim())) val = "validado";
+            if (!val && /^(status|estado)$/i.test((h || "").trim())) val = "status";
+            if (!val && /^(datapag|data\s*pag|data\s*pagamento)$/i.test((h || "").trim())) val = "data_pag";
+            if (!val && /^(valorpago|valor\s*pago|montante\s*pago)$/i.test((h || "").trim())) val = "valor_pago";
+            if (!val && /^(contastock|conta\s*stock)$/i.test((h || "").trim())) val = "conta_stock";
+
+            const opts = ["<option value=''" + (!val ? " selected" : "") + ">— (ignorar)</option>"].concat(FLOWLY_STOCK_FIELDS.map(f => "<option value='" + f + "'" + (val === f ? " selected" : "") + ">" + f + "</option>")).join("");
+
+            tr.innerHTML = "<td class='p-2 font-medium text-[#020617]'>" + (h || "(vazio)") + "</td><td class='p-2'><select class='w-full p-2 rounded-lg border border-flowly-border text-sm bg-white' data-header='" + (h || "").replace(/'/g, "&#39;") + "'>" + opts + "</select></td>";
+            tbody.appendChild(tr);
+        });
+
+        const mappingEl = document.getElementById("modalImportarStockMapping");
+        if (mappingEl) mappingEl.classList.remove("hidden");
+
+        const btnConf = document.getElementById("btnModalImportarConfirmar");
+        if (btnConf) btnConf.classList.remove("hidden");
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function processCSV(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const text = (e.target.result || "").replace(/\uFEFF/g, "");
+            const separator = text.indexOf(';') !== -1 ? ';' : ',';
+            const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
+
+            if (lines.length < 1) return notify("O ficheiro está vazio.", "warning");
+
+            const headers = lines[0].split(separator).map(h => (h || "").replace(/^"|"$/g, "").trim());
+
+            _pendingCSVFullText = text;
+            _pendingCSVHeaders = headers;
+            _pendingCSVSeparator = separator;
+
+            document.getElementById("modalImportarStock").classList.remove("hidden");
+            document.getElementById("modalImportarStockStep1").classList.add("hidden");
+            document.getElementById("modalImportarStockLoader").classList.remove("hidden");
+
+            google.script.run
+                .withFailureHandler(() => {
+                    document.getElementById("modalImportarStockLoader").classList.add("hidden");
+                    showImportMappingUI({});
+                })
+                .withSuccessHandler(res => {
+                    document.getElementById("modalImportarStockLoader").classList.add("hidden");
+                    showImportMappingUI(res.mapping || {});
+                })
+                .analyzeHeadersWithAI(_pendingCSVHeaders);
+        };
+        reader.readAsText(file, "UTF-8");
+    }
+
+    function confirmImportStock() {
+        const tipoMov = (document.getElementById("importTipoMovimento") || {}).value || "Entrada";
+        const tbody = document.getElementById("modalImportarStockMappingBody");
+        const selects = tbody.querySelectorAll("select");
+        const columnToField = {};
+
+        selects.forEach(sel => {
+            const header = sel.getAttribute("data-header");
+            if (sel.value) columnToField[header] = sel.value;
+        });
+
+        const lines = _pendingCSVFullText.split(/\r?\n/).filter(l => l.trim());
+        const formattedData = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const row = lines[i].split(_pendingCSVSeparator);
+            const obj = {};
+            Object.keys(columnToField).forEach(header => {
+                const field = columnToField[header];
+                const idx = _pendingCSVHeaders.indexOf(header);
+                obj[field] = row[idx] ? row[idx].replace(/^"|"$/g, "").trim() : "";
+            });
+            formattedData.push(obj);
+        }
+
+        google.script.run
+            .withSuccessHandler(res => {
+                closeModalImportarStock();
+                if (window.notify) notify("Importação concluída!", "success");
+                if (typeof loadCC === "function") loadCC();
+                if (typeof updateDash === "function") updateDash();
+            })
+            .importBulkStock(formattedData, tipoMov, _ctxEmail());
+    }
+
+    // Exportar funções para o objeto window
+    window.switchDataTab = switchDataTab;
+    window.sendAIChat = sendAIChat;
+    window.checkUnmappedItems = checkUnmappedItems;
+    window.handleConectarSistema = handleConectarSistema;
+    window.handleExport = handleExport;
+    window.confirmClearMappings = confirmClearMappings;
+    window.openMapeamentoModal = openMapeamentoModal;
+    window.saveMapeamentoFromModal = saveMapeamentoFromModal;
+    window.downloadStockTemplate = downloadStockTemplate;
+    window.closeModalImportarStock = closeModalImportarStock;
+    window.showImportMappingUI = showImportMappingUI;
+    window.processCSV = processCSV;
+    window.confirmImportStock = confirmImportStock;
+
+})(window, document);

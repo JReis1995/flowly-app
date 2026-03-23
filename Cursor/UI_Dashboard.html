@@ -1,0 +1,563 @@
+<div id="view-dashboard">
+<!-- VIEW: HOME (Ecrã Inicial) -->
+<div id="viewHome" class="view-section hidden space-y-6 animate-slide-up">
+    <div
+        class="bg-flowly-midnight p-6 rounded-[2.5rem] shadow-lg text-white mb-6 border border-slate-700 relative overflow-hidden group">
+        <div
+            class="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/20 transition duration-700">
+        </div>
+        <p class="text-[10px] opacity-70 uppercase tracking-widest font-bold">Faturação (Mês)</p>
+        <h2 id="kpiHomeFat" class="text-3xl font-black mt-1">-- €</h2>
+    </div>
+
+    <div id="btnCentral"
+        class="hidden mb-6 bg-slate-100 p-6 rounded-[2rem] flex items-center gap-4 text-flowly-midnight cursor-pointer border border-flowly-primary border-dashed hover:bg-slate-200 transition group"
+        onclick="nav('central')">
+        <div class="bg-white p-3 rounded-full shadow-sm group-hover:scale-110 transition"><i data-lucide="cpu"
+                class="w-6 h-6 text-flowly-primary"></i></div>
+        <div>
+            <h3 class="font-bold">Central SaaS</h3>
+            <p class="text-xs opacity-50">Gestão Global & Clientes</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div id="btnModDash" onclick="nav('dashboard')"
+            class="theme-card bg-white p-6 rounded-[2rem] shadow-card flex items-center gap-5 cursor-pointer active:scale-95 transition hover:shadow-md border border-slate-50">
+            <div class="bg-violet-50 dark:bg-violet-900/30 p-4 rounded-2xl text-flowly-primary"><i data-lucide="bar-chart-3"
+                    class="w-8 h-8"></i></div>
+            <div>
+                <h3 class="font-bold text-lg text-slate-900 dark:text-slate-50">Dashboard</h3>
+                <p class="text-xs text-flowly-slate dark:text-slate-400">BI & Analytics</p>
+            </div>
+        </div>
+        <div id="btnModLogistica" onclick="nav('logistica')"
+            class="theme-card bg-white p-6 rounded-[2rem] shadow-card flex items-center gap-5 cursor-pointer active:scale-95 transition hover:shadow-md border border-slate-50">
+            <div class="bg-cyan-50 dark:bg-cyan-900/30 p-4 rounded-2xl text-flowly-primary"><i data-lucide="package"
+                    class="w-8 h-8"></i></div>
+            <div>
+                <h3 class="font-bold text-lg text-slate-900 dark:text-slate-50">Logística</h3>
+                <p class="text-xs text-flowly-slate dark:text-slate-400">Scanner AI & Stocks</p>
+            </div>
+        </div>
+        <div id="btnModRH" onclick="nav('rh')"
+            class="theme-card bg-white p-6 rounded-[2rem] shadow-card flex items-center gap-5 cursor-pointer active:scale-95 transition hover:shadow-md border border-slate-50">
+            <div class="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded-2xl text-flowly-success"><i data-lucide="users"
+                    class="w-8 h-8"></i></div>
+            <div>
+                <h3 class="font-bold text-lg text-slate-900 dark:text-slate-50">Colaboradores</h3>
+                <p class="text-xs text-flowly-slate dark:text-slate-400">Equipa & Custos Reais</p>
+            </div>
+        </div>
+        <div id="btnModCC" onclick="nav('cc')"
+            class="theme-card bg-white p-6 rounded-[2rem] shadow-card flex items-center gap-5 cursor-pointer active:scale-95 transition hover:shadow-md border border-slate-50">
+            <div class="bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-2xl text-flowly-primary dark:text-indigo-400"><i
+                    data-lucide="wallet" class="w-8 h-8"></i></div>
+            <div>
+                <h3 class="font-bold text-lg text-slate-900 dark:text-slate-50">Conta Corrente</h3>
+                <p class="text-xs text-flowly-slate dark:text-slate-400">Tesouraria & Pagamentos</p>
+            </div>
+        </div>
+        <div id="btnModAdmin" onclick="nav('admin')"
+            class="theme-card bg-white p-6 rounded-[2rem] shadow-card flex items-center gap-5 cursor-pointer active:scale-95 transition hover:shadow-md border border-slate-50">
+            <div class="bg-slate-100 dark:bg-slate-700 p-4 rounded-2xl text-flowly-slate dark:text-slate-300"><i
+                    data-lucide="shield" class="w-8 h-8"></i></div>
+            <div>
+                <h3 class="font-bold text-lg text-slate-900 dark:text-slate-50">Acessos</h3>
+                <p class="text-xs text-flowly-slate dark:text-slate-400">Gestão de Utilizadores</p>
+            </div>
+        </div>
+        <div id="btnModIA" onclick="nav('ia')"
+            class="theme-card bg-white p-6 rounded-[2rem] shadow-card flex items-center gap-5 cursor-pointer active:scale-95 transition hover:shadow-md border border-slate-50">
+            <div class="bg-flowly-warning/10 dark:bg-amber-900/30 p-4 rounded-2xl text-flowly-warning dark:text-amber-400"><i
+                    data-lucide="sparkles" class="w-8 h-8"></i></div>
+            <div>
+                <h3 class="font-bold text-lg text-slate-900 dark:text-slate-50">IA Insight</h3>
+                <p class="text-xs text-flowly-slate dark:text-slate-400">Alertas e recomendações</p>
+            </div>
+        </div>
+        <div id="btnModExportacao" onclick="nav('exportacao')"
+            class="theme-card bg-white p-6 rounded-[2rem] shadow-card flex items-center gap-5 cursor-pointer active:scale-95 transition hover:shadow-md border border-flowly-border relative">
+            <div class="bg-cyan-50 dark:bg-cyan-900/30 p-4 rounded-2xl text-flowly-primary"><i
+                    data-lucide="arrow-right-left" class="w-8 h-8"></i></div>
+            <div>
+                <h3 class="font-bold text-lg text-flowly-midnight dark:text-slate-50">Importação & Exportação</h3>
+                <p class="text-xs text-flowly-slate dark:text-slate-400">Sincronização de Dados e Contabilidade</p>
+            </div>
+        </div>
+        <div id="btnModFrota" onclick="nav('frota')"
+            class="theme-card bg-white p-6 rounded-[2rem] shadow-card flex items-center gap-5 cursor-pointer active:scale-95 transition hover:shadow-md border border-slate-50">
+            <div class="bg-cyan-50 dark:bg-cyan-900/30 p-4 rounded-2xl text-flowly-primary"><i data-lucide="truck"
+                    class="w-8 h-8"></i></div>
+            <div>
+                <h3 class="font-bold text-lg text-slate-900 dark:text-slate-50">Gestão de Frota</h3>
+                <p class="text-xs text-flowly-slate dark:text-slate-400">Controlo de viaturas, custos e vasilhame</p>
+            </div>
+        </div>
+        <div id="btnModCrm" onclick="nav('crm')"
+            class="theme-card bg-white p-6 rounded-[2rem] shadow-card flex items-center gap-5 cursor-pointer active:scale-95 transition hover:shadow-md border border-slate-50">
+            <div class="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded-2xl text-emerald-600 dark:text-emerald-400"><i
+                    data-lucide="users-round" class="w-8 h-8"></i></div>
+            <div>
+                <h3 class="font-bold text-lg text-slate-900 dark:text-slate-50">CRM Clientes</h3>
+                <p class="text-xs text-flowly-slate dark:text-slate-400">Base de clientes com auditoria RGPD</p>
+            </div>
+        </div>
+        <div id="btnModCondominios" onclick="nav('condominios')"
+            class="hidden theme-card bg-white p-6 rounded-[2rem] shadow-card flex items-center gap-5 cursor-pointer active:scale-95 transition hover:shadow-md border border-slate-50">
+            <div class="bg-sky-50 dark:bg-sky-900/30 p-4 rounded-2xl text-sky-600 dark:text-sky-400"><i
+                    data-lucide="building-2" class="w-8 h-8"></i></div>
+            <div>
+                <h3 class="font-bold text-lg text-slate-900 dark:text-slate-50">Condomínios</h3>
+                <p class="text-xs text-flowly-slate dark:text-slate-400">Prédios, Frações e Cofre IBAN</p>
+            </div>
+        </div>
+        <div id="btnModFichasTecnicas" onclick="nav('fichas_tecnicas')"
+            class="theme-card bg-white p-6 rounded-[2rem] shadow-card flex items-center gap-5 cursor-pointer active:scale-95 transition hover:shadow-md border border-slate-50">
+            <div class="bg-purple-50 dark:bg-purple-900/30 p-4 rounded-2xl text-purple-600 dark:text-purple-400"><i
+                    data-lucide="file-spreadsheet" class="w-8 h-8"></i></div>
+            <div>
+                <h3 class="font-bold text-lg text-slate-900 dark:text-slate-50">Fichas Técnicas</h3>
+                <p class="text-xs text-flowly-slate dark:text-slate-400">Receiturário & Rentabilidade</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- VIEW: DASHBOARD -->
+<div id="viewDashboard" class="view-section hidden space-y-6 animate-slide-up">
+
+    <div class="bg-white shadow-sm rounded-[1.5rem] border border-slate-100 p-4">
+        <p class="text-[10px] font-black uppercase mb-3 text-slate-400 tracking-wider">Estratégia de Rentabilidade
+            (Margem Dinâmica)</p>
+        <div class="flex flex-wrap items-center gap-3">
+            <div class="flex items-center gap-2">
+                <label class="text-xs font-bold text-slate-600">Margem Líquida Alvo</label>
+                <select id="marginTarget"
+                    class="bg-slate-50 border border-flowly-border rounded-xl px-3 py-2 text-xs font-bold text-flowly-midnight outline-none focus:ring-2 ring-flowly-primary/30"
+                    onchange="var c=document.getElementById('marginCustomRow');if(c)c.classList.toggle('hidden',this.value!=='Personalizado')">
+                    <option value="10">10%</option>
+                    <option value="20">20%</option>
+                    <option value="30">30%</option>
+                    <option value="40">40%</option>
+                    <option value="50">50%</option>
+                    <option value="Personalizado">Personalizado</option>
+                </select>
+                <div id="marginCustomRow" class="hidden flex items-center gap-1">
+                    <input type="number" id="marginCustom" min="0" max="100" step="0.5" placeholder="%"
+                        class="w-16 bg-slate-50 border border-flowly-border rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 ring-flowly-primary/30">
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-xs font-bold text-slate-600">IRC (%)</label>
+                <input type="number" id="marginIRC" min="0" max="100" step="0.5"
+                    class="w-20 bg-slate-50 border border-flowly-border rounded-xl px-3 py-2 text-xs font-bold text-flowly-midnight outline-none focus:ring-2 ring-flowly-primary/30">
+            </div>
+            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 my-3">
+                <div class="flex items-center gap-2">
+                    <label class="text-xs font-bold text-slate-600">Método de Cálculo:</label>
+                    <select id="marginMethod"
+                        class="bg-slate-50 border border-flowly-border rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-flowly-primary/30">
+                        <option value="markup">Markup (Adicionar ao Custo)</option>
+                        <option value="margem_real">Margem Líquida Real (Sobre Venda)</option>
+                    </select>
+                </div>
+                <div id="displayAutoOpEx"
+                    class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-2 rounded-xl border border-blue-100 animate-pulse">
+                    Taxa de Absorção (365d): A calcular...
+                </div>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="marginUpdateHistory" class="accent-flowly-primary w-4 h-4 rounded">
+                <span class="text-xs font-bold text-slate-600">Aplicar novo preço sugerido ao histórico de
+                    Entradas</span>
+            </label>
+            <button onclick="saveMarginUI()"
+                class="bg-flowly-primary text-white px-4 py-2 rounded-xl font-black text-xs shadow-lg hover:bg-cyan-400 transition active:scale-95">Aplicar
+                Estratégia</button>
+        </div>
+    </div>
+
+    <div class="flex flex-col gap-4">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center gap-2 cursor-pointer text-slate-500 hover:text-flowly-midnight transition"
+                onclick="nav('home')">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i><span class="text-xs font-bold">Voltar</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="Object.keys(_viewCache).forEach(k=>delete _viewCache[k]); updateDash();"
+                    title="Atualizar dashboard"
+                    class="bg-slate-100 p-2 rounded-full text-slate-500 hover:bg-flowly-primary hover:text-white transition active:scale-95">
+                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                </button>
+                <button onclick="document.getElementById('dashConfigPanel').classList.toggle('hidden')"
+                    class="bg-slate-100 p-2 rounded-full text-slate-500 hover:bg-slate-200 transition">
+                    <i data-lucide="settings-2" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex gap-1.5 bg-slate-100 p-1 rounded-2xl">
+            <button onclick="setDashPeriod('day')" id="periodDay"
+                class="dash-period-btn flex-1 py-2 rounded-xl text-[10px] font-black text-slate-400 transition">Dia</button>
+            <button onclick="setDashPeriod('week')" id="periodWeek"
+                class="dash-period-btn flex-1 py-2 rounded-xl text-[10px] font-black text-slate-400 transition">Semana</button>
+            <button onclick="setDashPeriod('month')" id="periodMonth"
+                class="dash-period-btn flex-1 py-2 rounded-xl text-[10px] font-black text-slate-400 transition active">Mês</button>
+            <button onclick="setDashPeriod('year')" id="periodYear"
+                class="dash-period-btn flex-1 py-2 rounded-xl text-[10px] font-black text-slate-400 transition">Ano</button>
+            <button onclick="setDashPeriod('custom')" id="periodCustom"
+                class="dash-period-btn flex-1 py-2 rounded-xl text-[10px] font-black text-slate-400 transition">Custom</button>
+        </div>
+        <div id="customDateRow" class="hidden flex gap-2 items-center">
+            <input type="date" id="dStart"
+                class="bg-white p-3 rounded-xl text-[10px] font-bold text-slate-600 shadow-sm flex-1 outline-none focus:ring-2 ring-flowly-primary/30">
+            <input type="date" id="dEnd"
+                class="bg-white p-3 rounded-xl text-[10px] font-bold text-slate-600 shadow-sm flex-1 outline-none focus:ring-2 ring-flowly-primary/30">
+            <button onclick="Object.keys(_viewCache).forEach(k=>delete _viewCache[k]); updateDash();"
+                class="bg-flowly-primary text-white px-4 py-3 rounded-xl font-black text-[10px] shadow-lg hover:bg-cyan-400 transition active:scale-95 flex items-center gap-1.5">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Aplicar
+            </button>
+        </div>
+
+        <div id="dashConfigPanel" class="hidden bg-slate-800 p-4 rounded-2xl text-white text-xs space-y-2 shadow-inner">
+            <p class="font-bold text-slate-400 uppercase mb-2">Visibilidade de Widgets</p>
+            <label class="flex items-center gap-2"><input type="checkbox" checked class="accent-flowly-primary"
+                    onchange="toggleWidget('wFat')"> Faturação</label>
+            <label class="flex items-center gap-2"><input type="checkbox" checked class="accent-flowly-primary"
+                    onchange="toggleWidget('wLucro')"> Lucro & Margem</label>
+        </div>
+
+        <div class="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100">
+            <button onclick="setDashSubTab('Fin')" id="tFin"
+                class="auth-required flex-1 py-2 rounded-xl text-[10px] font-bold bg-flowly-midnight text-white shadow-md transition-all">Financeiro</button>
+            <button onclick="setDashSubTab('Stock')" id="tStock"
+                class="auth-required flex-1 py-2 rounded-xl text-[10px] font-bold text-slate-500 hover:bg-slate-50 transition-all">Stocks</button>
+            <button onclick="setDashSubTab('RH')" id="tRH"
+                class="auth-required flex-1 py-2 rounded-xl text-[10px] font-bold text-slate-500 hover:bg-slate-50 transition-all"
+                data-tab="rh">RH</button>
+            <button onclick="setDashSubTab('Frota')" id="tFrota"
+                class="auth-required flex-1 py-2 rounded-xl text-[10px] font-bold text-slate-500 hover:bg-slate-50 transition-all"
+                data-tab="frota">Gestão de Frota</button>
+        </div>
+    </div>
+
+    <!-- DASHBOARD: TAB FINANCEIRO -->
+    <div id="dFin" class="auth-required flex flex-col gap-y-6 animate-slide-up">
+        <!-- LINHA 1: A PERFORMANCE -->
+        <div>
+            <p class="text-[9px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider mb-2">A
+                PERFORMANCE</p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div id="wFat" class="kpi-card theme-card p-3 rounded-[1.5rem] shadow-sm border">
+                    <p class="text-[8px] font-bold text-slate-400 dark:text-slate-400 uppercase">FATURAÇÃO</p>
+                    <h3 id="kpFat" class="font-black text-base text-flowly-midnight dark:text-white mt-1">--€</h3>
+                    <p id="kpFatSublabel" class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Recebido: --€ |
+                        Pendente: --€</p>
+                </div>
+                <div id="wDesp" class="kpi-card theme-card p-3 rounded-[1.5rem] shadow-sm border">
+                    <p class="text-[8px] font-bold text-slate-400 dark:text-slate-400 uppercase">DESPESAS OPEX</p>
+                    <h3 id="kpDespesas" class="font-black text-base text-red-400 dark:text-white mt-1">--€</h3>
+                    <p id="kpDespesasSublabel" class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Pago: --€ |
+                        Por Pagar: --€</p>
+                </div>
+                <div id="cardCustosPessoal"
+                    class="kpi-card theme-card p-3 rounded-[1.5rem] shadow-sm border border-l-4 border-l-flowly-primary">
+                    <p class="text-[8px] font-bold text-slate-400 dark:text-slate-400 uppercase">CUSTOS PESSOAL</p>
+                    <h3 id="kpCompromissosRH" class="font-black text-base text-flowly-primary dark:text-white mt-1">--€
+                    </h3>
+                    <p id="kpRHSublabel" class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Impacto no Lucro:
+                        --€ | Pago: 0€</p>
+                </div>
+                <div id="wLucro" class="kpi-card theme-card p-3 rounded-[1.5rem] shadow-sm border">
+                    <p class="text-[8px] font-bold text-slate-400 dark:text-slate-400 uppercase">LUCRO LÍQ. & MARGEM</p>
+                    <h3 id="kpLucro" class="font-black text-base text-flowly-success dark:text-white mt-1">--€</h3>
+                    <p id="kpMargem" class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">--%</p>
+                </div>
+            </div>
+        </div>
+        <!-- LINHA 2: A TESOURARIA -->
+        <div>
+            <p class="text-[9px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider mb-2">A
+                TESOURARIA</p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div id="cardCaixaLivre"
+                    class="auth-required kpi-card theme-card p-3 rounded-[1.5rem] shadow-sm border border-l-4 border-l-cyan-500 ring-2 ring-cyan-200/50 dark:ring-cyan-500/30">
+                    <p class="text-[8px] font-bold text-slate-400 dark:text-slate-400 uppercase">CAIXA LIVRE</p>
+                    <h3 id="kpCaixaLivre" class="font-black text-base text-cyan-600 dark:text-white mt-1">--€</h3>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Entradas Pagas - (Despesas + RH
+                        Pagos)</p>
+                </div>
+                <div id="cardAReceber"
+                    class="kpi-card theme-card p-3 rounded-[1.5rem] shadow-sm border border-l-4 border-l-cyan-500">
+                    <p class="text-[8px] font-bold text-slate-400 dark:text-slate-400 uppercase">A RECEBER (Na Rua)</p>
+                    <h3 id="kpAReceber" class="font-black text-base text-cyan-500 dark:text-cyan-400 mt-1">--€</h3>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Vendas em aberto</p>
+                </div>
+                <div class="kpi-card theme-card p-3 rounded-[1.5rem] shadow-sm border">
+                    <p class="text-[8px] font-bold text-slate-400 dark:text-slate-400 uppercase">FATURAS A PAGAR</p>
+                    <h3 id="kpFaturasAPagamento" class="font-black text-base text-flowly-warning dark:text-white mt-1">--€
+                    </h3>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Stock + Despesas em Aberto</p>
+                </div>
+                <div class="kpi-card theme-card p-3 rounded-[1.5rem] shadow-sm border">
+                    <p class="text-[8px] font-bold text-slate-400 dark:text-slate-400 uppercase">IVA/IRC</p>
+                    <h3 id="kpIVAIRC" class="font-black text-base text-orange-400 dark:text-white mt-1">--€</h3>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Obrigações Fiscais</p>
+                </div>
+            </div>
+        </div>
+        <!-- FLOWLY AI — entre KPIs e tabelas -->
+        <div id="financeiroAICard"
+            class="h-auto min-h-[100px] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border-l-4 border-flowly-primary shadow-md rounded-xl p-4">
+            <p class="text-[8px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">✨ FLOWLY
+                AI — FINANÇAS</p>
+            <p id="aiText_financeiro"
+                class="text-sm font-medium text-slate-800 dark:text-slate-100 whitespace-normal break-words leading-relaxed h-auto">
+                A carregar dados...</p>
+            <div id="finAITodosContainer" class="mt-3 pt-3 border-t border-flowly-border dark:border-slate-600 space-y-2">
+            </div>
+            <div class="mt-2 flex flex-wrap items-center gap-2"><button type="button"
+                    onclick="openAIHistoryModal('financeiro')"
+                    class="text-xs font-medium text-flowly-primary hover:underline">Ver Histórico</button><button
+                    type="button" id="btn_ref_fin"
+                    class="auth-required px-3 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-90"
+                    style="background:#06B6D4">⚡ Atualizar Financeiro (4 créditos)</button></div>
+        </div>
+        <div id="topDevedoresCard"
+            class="theme-card bg-slate-100 dark:bg-slate-800/50 p-4 rounded-[1.5rem] shadow-sm border border-flowly-border dark:border-slate-700 mt-3">
+            <p class="text-[10px] font-black uppercase mb-3 text-slate-700 dark:text-slate-100 tracking-wider">TOP
+                DEVEDORES</p>
+            <div id="topDevedoresList"
+                class="space-y-2 text-slate-800 dark:text-slate-200 text-[10px] max-h-[140px] overflow-y-auto"></div>
+        </div>
+        <!-- LINHA 3: MÉTRICAS OPERACIONAIS -->
+        <div>
+            <p class="text-[9px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider mb-2">MÉTRICAS
+                OPERACIONAIS</p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="kpi-card theme-card p-2.5 rounded-xl shadow-sm border bg-slate-50/50 dark:bg-slate-800/30">
+                    <p class="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase">Ticket Médio</p>
+                    <h3 id="kpTicket" class="font-black text-sm text-slate-600 dark:text-slate-300 mt-0.5">--€</h3>
+                </div>
+                <div class="kpi-card theme-card p-2.5 rounded-xl shadow-sm border bg-slate-50/50 dark:bg-slate-800/30">
+                    <p class="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase">Transações</p>
+                    <h3 id="kpTrans" class="font-black text-sm text-slate-600 dark:text-slate-300 mt-0.5">--</h3>
+                </div>
+            </div>
+        </div>
+        <div
+            class="theme-card bg-white dark:bg-slate-800 p-4 rounded-[2rem] shadow-sm border border-slate-50 dark:border-slate-700">
+            <p class="text-[10px] font-black uppercase mb-3 text-slate-400 tracking-wider">⚠️ Alertas de Fuga de Margem
+            </p>
+            <div id="marginAlertsContainer"
+                class="flex flex-col gap-3 min-h-[60px] h-auto overflow-y-auto overflow-x-hidden">
+                <div id="marginAlertsList" class="space-y-2 min-h-[60px]"></div>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div
+                class="theme-card bg-white dark:bg-slate-800 p-4 rounded-[2rem] shadow-sm border border-slate-50 dark:border-slate-700">
+                <p class="text-[10px] font-black uppercase mb-2 text-slate-400 tracking-wider" id="chartProfitLabel">
+                    Evolução do Lucro</p>
+                <div class="chart-wrapper overflow-hidden h-[250px]"><canvas id="chartProfit" height="72"></canvas>
+                </div>
+            </div>
+            <div
+                class="theme-card bg-white dark:bg-slate-800 p-4 rounded-[2rem] shadow-sm border border-slate-50 dark:border-slate-700">
+                <p class="text-[10px] font-black uppercase mb-2 text-slate-400 tracking-wider">Faturação vs Despesas</p>
+                <div class="chart-wrapper overflow-hidden h-[250px]"><canvas id="chartFatDesp" height="72"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD: TAB STOCKS -->
+    <div id="dStock" class="auth-required hidden flex flex-col gap-y-6 animate-slide-up">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase">Valor Stock</p>
+                <h3 id="kpStockVal" class="font-black text-lg text-flowly-midnight dark:text-white mt-1">--€</h3>
+            </div>
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase">Rotatividade</p>
+                <h3 id="kpRot" class="font-black text-lg text-blue-500 dark:text-blue-400 mt-1">--</h3>
+            </div>
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase">Compras</p>
+                <h3 id="kpCompras" class="font-black text-lg text-red-400 dark:text-red-400 mt-1">--€</h3>
+            </div>
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase">Risco Ruptura</p>
+                <h3 class="font-black text-lg text-orange-500 dark:text-orange-400 mt-1">0</h3>
+            </div>
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase">Stock Morto (€)</p>
+                <h3 id="kpDeadStock" class="font-black text-lg text-flowly-warning dark:text-amber-400 mt-1">--€</h3>
+            </div>
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase">Erosão de Margem</p>
+                <h3 id="kpErosion" class="font-black text-lg text-red-500 dark:text-red-400 mt-1">--</h3>
+            </div>
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase">Dias de Cobertura</p>
+                <h3 id="kpDiasCobertura" class="font-black text-lg text-blue-500 dark:text-blue-400 mt-1">--</h3>
+            </div>
+        </div>
+        <div id="stocksAiCard"
+            class="h-auto min-h-[100px] bg-gradient-to-br from-cyan-50 to-slate-50 dark:from-cyan-900/20 dark:to-slate-900/30 border-l-4 border-flowly-primary shadow-md rounded-xl p-4 animate-sparkle">
+            <p class="text-[8px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">✨ FLOWLY
+                AI — LOGÍSTICA</p>
+            <p id="aiText_stocks"
+                class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-normal break-words leading-relaxed">
+                A carregar dados...</p>
+            <div id="stocksAITodosContainer"
+                class="mt-3 pt-3 border-t border-flowly-border dark:border-slate-600 space-y-2"></div>
+            <div class="mt-2 flex flex-wrap items-center gap-2"><button type="button"
+                    onclick="openAIHistoryModal('stocks')"
+                    class="text-xs font-medium text-flowly-primary hover:underline">Ver Histórico</button><button
+                    type="button" id="btn_ref_stocks"
+                    class="auth-required px-3 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-90"
+                    style="background:#06B6D4">⚡ Atualizar Stocks (4 créditos)</button></div>
+        </div>
+        <div class="theme-card p-5 rounded-[2rem] shadow-sm border">
+            <p class="text-[10px] font-black uppercase mb-4 text-slate-400 dark:text-slate-400 tracking-wider">Top 5
+                Produtos Vendidos</p>
+            <div class="chart-wrapper overflow-hidden h-[250px]"><canvas id="chartTopProd" height="78"></canvas></div>
+        </div>
+        <div class="theme-card p-5 rounded-[2rem] shadow-sm border">
+            <p class="text-[10px] font-black uppercase mb-4 text-slate-400 dark:text-slate-400 tracking-wider">Stock por
+                artigo</p>
+            <div id="dStockPorArtigo" class="space-y-2 max-h-[280px] overflow-y-auto text-[10px]"></div>
+        </div>
+        <div class="theme-card p-5 rounded-[2rem] shadow-sm border">
+            <div id="dStockVasilhame" class="space-y-2">
+                <p class="text-[10px] font-black uppercase mb-2 text-slate-400 dark:text-slate-400 tracking-wider">
+                    Controlo de Vasilhame</p>
+                <p class="text-slate-400 dark:text-slate-400 text-sm">A carregar...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD: TAB RH -->
+    <div id="dRH" class="auth-required hidden flex flex-col gap-y-6 animate-slide-up">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">Custo Real (Proporcional)
+                </p>
+                <h3 id="kpRHCost" class="font-black text-lg text-red-500 mt-1">--€</h3>
+                <p class="text-[8px] text-slate-400 mt-0.5">Valor efetivo este mês</p>
+            </div>
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">Custo Real Estimado</p>
+                <h3 id="kpRHCostEstimado" class="font-black text-lg text-flowly-warning dark:text-amber-400 mt-1">--€</h3>
+                <p class="text-[8px] text-slate-400 mt-0.5">Para cálculos de lucro</p>
+            </div>
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">Ativos</p>
+                <h3 id="kpRHCount" class="font-black text-lg text-slate-900 dark:text-slate-50 mt-1">--</h3>
+            </div>
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">Custo Médio</p>
+                <h3 id="kpRHMedio" class="font-black text-lg text-slate-600 dark:text-slate-300 mt-1">--€</h3>
+            </div>
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">Equipa Ideal</p>
+                <h3 id="kpRHIdeal" class="font-black text-lg text-blue-500 mt-1">--</h3>
+            </div>
+        </div>
+        <div id="rhAiCard"
+            class="h-auto min-h-[100px] bg-gradient-to-br from-cyan-50 to-slate-50 dark:from-cyan-900/20 dark:to-slate-900/30 border-l-4 border-flowly-primary shadow-md rounded-xl p-4 animate-sparkle">
+            <p class="text-[8px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">✨ FLOWLY
+                AI — OPERAÇÕES & RH</p>
+            <p id="aiText_rh"
+                class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-normal break-words leading-relaxed">
+                A carregar dados...</p>
+            <p id="kpRHSavings" class="text-[10px] text-cyan-700 dark:text-cyan-400 mt-1 font-mono">Impacto: 0.00 €</p>
+            <div id="rhAITodos" class="mt-3 pt-3 border-t border-flowly-border dark:border-slate-600 space-y-2"></div>
+            <div class="mt-2 flex flex-wrap items-center gap-2"><button type="button" onclick="openAIHistoryModal('rh')"
+                    class="text-xs font-medium text-flowly-primary hover:underline">Ver Histórico</button><button
+                    type="button" id="btn_ref_rh"
+                    class="auth-required px-3 py-1.5 rounded-lg text-xs font-bold text-white transition hover:opacity-90"
+                    style="background:#06B6D4">⚡ Atualizar RH (4 créditos)</button></div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD: TAB FROTA -->
+    <div id="dFrota" class="auth-required hidden flex flex-col gap-y-6 animate-slide-up">
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase">Custo Total Mês</p>
+                <h3 id="kpFrotaCusto" class="font-black text-lg text-red-500 dark:text-red-400 mt-1">--€</h3>
+            </div>
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase">Custo por KM</p>
+                <h3 id="kpFrotaCustoKm" class="font-black text-lg text-flowly-midnight dark:text-cyan-400 mt-1">-- €/km
+                </h3>
+            </div>
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase">KM Totais</p>
+                <h3 id="kpFrotaKmTotais" class="font-black text-lg text-blue-500 dark:text-cyan-400 mt-1">-- km</h3>
+            </div>
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase">Consumo Médio Global</p>
+                <h3 id="kpFrotaConsumo" class="font-black text-lg text-flowly-midnight dark:text-slate-100 mt-1">--
+                    L/100km</h3>
+            </div>
+            <div class="kpi-card theme-card p-4 rounded-[1.5rem] shadow-sm border">
+                <p class="text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase">Alertas Ativos</p>
+                <h3 id="kpFrotaAlertas" class="font-black text-lg text-flowly-warning dark:text-slate-100 mt-1">--</h3>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div
+                class="kpi-card theme-card bg-slate-100 dark:bg-slate-800/50 p-4 rounded-[1.5rem] shadow-sm border border-flowly-border dark:border-slate-700">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Custos Manutenção/Revisão</p>
+                <h3 id="kpFrotaManutencao" class="font-black text-lg text-flowly-midnight dark:text-cyan-400 mt-1">--€
+                </h3>
+            </div>
+            <div
+                class="kpi-card theme-card bg-slate-100 dark:bg-slate-800/50 p-4 rounded-[1.5rem] shadow-sm border border-flowly-border dark:border-slate-700">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Custos Portagens</p>
+                <h3 id="kpFrotaPortagens" class="font-black text-lg text-flowly-midnight dark:text-cyan-400 mt-1">--€
+                </h3>
+            </div>
+            <div
+                class="kpi-card theme-card bg-slate-100 dark:bg-slate-800/50 p-4 rounded-[1.5rem] shadow-sm border border-flowly-border dark:border-slate-700">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Custos Abastecimento</p>
+                <h3 id="kpFrotaAbastecimento" class="font-black text-lg text-flowly-midnight dark:text-cyan-400 mt-1">
+                    --€</h3>
+            </div>
+        </div>
+        <div id="frotaAiCard"
+            class="h-auto min-h-[100px] bg-gradient-to-br from-cyan-50 to-slate-50 dark:from-cyan-900/20 dark:to-slate-900/30 border-l-4 border-flowly-primary shadow-md rounded-xl p-4 animate-sparkle">
+            <p class="text-[8px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">✨
+                FLOWLY
+                AI — FLEET INSIGHTS</p>
+            <p id="aiText_fleet"
+                class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-normal break-words leading-relaxed">
+                A carregar dados...</p>
+            <div id="fleetAITodosContainer" class="mt-3 pt-3 border-t border-flowly-border dark:border-slate-600 space-y-2">
+            </div>
+            <div class="mt-4 flex flex-wrap items-center gap-2"><button type="button"
+                    onclick="openAIHistoryModal('fleet')"
+                    class="text-xs font-medium text-flowly-primary hover:underline">Ver Histórico</button><button
+                    type="button" id="btn_ref_fleet" onclick="fetchCategoryAI('fleet')"
+                    class="auth-required px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors flex items-center gap-2 text-sm font-bold">⚡
+                    Atualizar Frota (4 créditos)</button></div>
+        </div>
+        <div class="theme-card p-5 rounded-[2rem] shadow-sm border">
+            <p class="text-[10px] font-black uppercase mb-4 text-slate-400 dark:text-cyan-400 tracking-wider">Ranking de
+                Eficiência (L/100km) — por viatura</p>
+            <div id="dFrotaRanking"
+                class="space-y-2 max-h-[200px] overflow-y-auto text-[10px] text-slate-900 dark:text-slate-100"></div>
+        </div>
+        <div class="theme-card p-5 rounded-[2rem] shadow-sm border">
+            <p class="text-[10px] font-black uppercase mb-4 text-slate-400 dark:text-cyan-400 tracking-wider">Tabela de
+                Manutenção — Alertas IPO, Seguro ou Higiene</p>
+            <div id="dFrotaAlertas"
+                class="space-y-2 max-h-[200px] overflow-y-auto text-[10px] text-slate-900 dark:text-slate-100"></div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,134 @@
+# Flowly Master - Core AI Instructions & Project Rules
+
+## 1. Segurança e Isolamento de Dados (RGPD & Multi-tenancy)
+- **Zero Leak Policy:** É terminantemente proibido partilhar ou exibir cache de IA entre diferentes utilizadores. 
+- **User-Specific Cache:** Todo o armazenamento local (localStorage) ou variáveis globais de cache de IA DEVEM ser indexadas pelo email do utilizador. 
+  - Exemplo obrigatório: `localStorage.getItem('flowly_cache_' + userEmail)`.
+- **Validation:** Antes de renderizar qualquer Insight de IA, verifica se o 'owner' do dado corresponde ao `_ctxEmail` atual. Se não corresponder, limpa o estado imediatamente.
+
+## 2. Princípios de Desenvolvimento (Clean Code)
+- **DRY (Don't Repeat Yourself):** Não cries funções duplicadas para limpeza de JSON ou tratamento de strings. Reutiliza `cleanAiMarkdown` e `emergencyStripJson`.
+- **Modularidade GAS:** Mantém a lógica de processamento de dados no `code.gs` e a lógica de manipulação de DOM/UI no `index.html`.
+- **Prevenção de Erros:** Nunca apresentes código bruto, chavetas `{}` ou labels de JSON ao utilizador final. Usa sempre os helpers de limpeza antes de qualquer `innerHTML`.
+
+## 3. Identidade Visual (Branding Flowly)
+Aplica estas diretrizes em todos os novos componentes ou correções de estilo:
+- **Cores Primárias:** Turquoise (`#06B6D4`), Success Green (`#10B981`), Midnight Structure (`#020617`).
+- **Superfícies:** Fundo principal (`#F8FAFC`), Cards e Containers (`#FFFFFF`).
+- **Tipografia:** Títulos em 'Inter' (Bold), Corpo de texto em 'Roboto' (Regular).
+- **Componentes:** - Cantos arredondados: `border-radius: 8px;`.
+  - Sombras: `box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);` (Soft Shadow).
+- **Gráficos:** Receitas em Azul, Despesas em Laranja.
+
+## 4. Contexto do Projeto
+- Este é um projeto Google Apps Script (GAS).
+- O backend (`code.gs`) interage com Google Sheets como base de dados.
+- O frontend (`index.html`) usa `google.script.run` para chamadas assíncronas.
+- O sistema de IA usa o Gemini via API, com cache guardado na aba 'AI_History' da folha do cliente.
+
+## 5. Esquema de Base de Dados (Google Sheets - Aba 'New')
+Mapeamento exato (0-indexed) da aba "New" do cliente:
+- Index 0 : Data
+- Index 1 : Tipo
+- Index 2 : Metodo
+- Index 3 : fornecedor
+- Index 4 : Artigo
+- Index 5 : Quantidade
+- Index 6 : Preco_Custo
+- Index 7 : Preco_Venda
+- Index 8 : Taxa iva (%)
+- Index 9 : Valor iva (€)
+- Index 10 : Dedutível (%)
+- Index 11 : Validado
+- Index 12 : Observacoes
+- Index 13 : Link_Foto
+- Index 14 : Timestamp
+- Index 15 : User
+- Index 16 : Status
+- Index 17 : Data de pagamento
+- Index 18 : Valor Pago
+- Index 19 : ContaStock
+- Index 20 : DocID (Coluna U)
+- Index 21 : Matrícula (Coluna V)
+- Index 22 : Km_Atuais (Coluna W)
+- Index 23 : Litros (Coluna X)
+- Index 24 : ID_Entidade (Coluna Y) — **Regra de Ouro:** ID_Entidade fica SEMPRE na Coluna Y
+- Index 25 : Preço Sugerido (Coluna Z)
+
+### Aba: 'AI_History'
+- Index 0 : Timestamp
+- Index 1 : UserEmail
+- Index 2 : Category
+- Index 3 : AnalysisObject
+
+### Aba: 'Config_Mapeamento'
+- Index 0 : ArtigoFlowly
+- Index 1 : ContaSoftware
+
+### Aba: 'Users_DB'
+- Index 0 : Email
+- Index 1 : Senha
+- Index 2 : Nome
+- Index 3 : Perfil
+- Index 4 : Estado
+
+### Aba: 'Staff_DB'
+- Index 0 : ID
+- Index 1 : Nome
+- Index 2 : NIF
+- Index 3 : Cargo
+- Index 4 : Vencimento Base (€)
+- Index 5 : Sub. Alimentação (€/Dia)
+- Index 6 : Seguro Acidentes (€/Mês)
+- Index 7 : TSU Empresa (%)
+- Index 8 : Estado
+- Index 9 : Custo Mensal Real (€)
+- Index 10 : Subs férias
+- Index 11 : Subs natal
+- Index 12 : Rescisão
+- Index 13 : Formações
+- Index 14 : Data Admissão
+- Index 15 : Dias contrato
+- Index 16 : Prémios
+- Index 17 : Email
+- Index 19 : Data Saída
+
+Before providing code, always think step-by-step. Outline the logic in 3 sentences before writing the actual implementation.
+
+## 6. Esquema da Base de Dados Master (Flowly_Master_DB)
+
+A tabela Master gere todos os inquilinos (clientes) do SaaS e os seus acessos. O ficheiro contém as seguintes colunas essenciais:
+
+- Coluna A (Index 0): Nome do Cliente
+- Coluna B (Index 1): Email do Gestor (Admin Email)
+- Coluna C (Index 2): Sheet ID (Base de dados do cliente)
+- Coluna D (Index 3): Folder ID
+- Coluna E (Index 4): Status (Ativo / Bloqueado)
+- Coluna F (Index 5): Plano (Basic / Pro)
+- Coluna H (Index 7): Módulos / Configuração (Objeto JSON com permissões booleanas. Ex: {"logistica":true, "ia":true, "rh":true, "cc":true, "access":true, "admin":true, "dashboard":true})
+- Coluna N (Index 13) / AI_Credits: Saldo de créditos da IA.
+
+REGRAS DE ARQUITETURA MULTI-TENANT:
+1. Sempre que o sistema carregar dados (ex: 'getDashboardData'), deve ler a Coluna H (Módulos / Configuração).
+2. O objeto JSON de configuração de cada cliente deve ser enviado para o frontend.
+3. O frontend (HTML/JS) deve ocultar ou mostrar abas, cards e secções com base nestes booleanos de configuração (Feature Flags), permitindo planos de preços e dashboards personalizados por cliente.
+
+## 7. Esquema da Aba Pacotes_IA (Master DB)
+Mapeamento exato (0-indexed) da aba "Pacotes_IA" da Master DB:
+- Coluna A (0): Data Criação
+- Coluna B (1): ID
+- Coluna C (2): Nome
+- Coluna D (3): Creditos
+- Coluna E (4): Preco
+- Coluna F (5): Link_Pagamento
+- Coluna G (6): Status (Ativo/Inativo)
+- Coluna H (7): Ultima Modificação
+
+## 8. Esquema da Aba Equipa_Flowly (Master DB)
+Mapeamento exato (0-indexed) da aba "Equipa_Flowly" da Master DB:
+- Coluna A (0): Email
+- Coluna B (1): Nome
+- Coluna C (2): Cargo (Owner/Admin/Dev)
+- Coluna D (3): Status (Ativo/Inativo)
+- Coluna E (4): Password (Hash)
+- Coluna F (5): Reset_Token

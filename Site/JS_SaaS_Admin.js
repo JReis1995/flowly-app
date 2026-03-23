@@ -1,0 +1,1266 @@
+(function() {
+    'use strict';
+    
+    // ==========================================
+    // 1. VARIÁVEIS DE CACHE
+    // ==========================================
+    var clientsCache = [];
+    var plansCache = [];
+    var aiPacksCache = [];
+    var _plansLoading = false;
+
+    // ==========================================
+    // 2. CENTRAL SAAS & AÇÕES EM MASSA
+    // ==========================================
+
+    function getSelectedClientEmails() {
+        return Array.from(document.querySelectorAll('.central-client-checkbox:checked'))
+            .map(cb => (cb.dataset.email || cb.getAttribute('data-email') || '').replace(/&quot;/g, '"'))
+            .filter(e => e && e.includes('@'));
+    }
+
+    function showBulkLoading(show) {
+        const el = document.getElementById('bulkLoadingOverlay');
+        if (el) el.classList.toggle('hidden', !show);
+    }
+
+    function updateBulkAIBlocks() {
+        try {
+            var sel = document.getElementById('bulkAIActionSelect');
+            if (!sel) return;
+            var action = (sel.value || 'credits');
+            document.getElementById('bulkAICreditsBlock').classList.toggle('hidden', action !== 'credits');
+            document.getElementById('bulkAIPlanBlock').classList.toggle('hidden', action !== 'plan');
+            document.getElementById('bulkAIStatusBlock').classList.toggle('hidden', action !== 'status');
+        } catch (e) { console.warn('updateBulkAIBlocks', e); }
+    }
+
+    function openBulkAIModal(presetAction) {
+        try {
+            var emails = getSelectedClientEmails();
+            if (!emails.length) { notify('Seleciona pelo menos um cliente.', 'warning'); return; }
+            var sel = document.getElementById('bulkAIActionSelect');
+            var planSel = document.getElementById('bulkAIPlanSelect');
+            if (sel) sel.value = presetAction || 'credits';
+            if (planSel && typeof plansCache !== 'undefined') {
+                planSel.innerHTML = (plansCache || []).map(function (p) {
+                    var name = (p.name || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                    var price = p.price != null ? p.price : 0;
+                    return '<option value="' + name + '">' + name + ' (' + price + '€/mês)</option>';
+                }).join('') || '<option value="Basic">Basic (29€/mês)</option><option value="Pro">Pro (59€/mês)</option>';
+                planSel.value = (plansCache && plansCache[0]) ? (plansCache[0].name || '') : 'Basic';
+            }
+            document.getElementById('bulkAICreditsInput').value = '0';
+            updateBulkAIBlocks();
+            document.getElementById('modalBulkAI').classList.remove('hidden');
+        } catch (e) { notify('Erro ao abrir ações em massa.', 'error'); }
+    }
+
+    function confirmBulkAIAction() {
+        try {
+            var emails = getSelectedClientEmails();
+            if (!emails.length) { notify('Seleciona pelo menos um cliente.', 'warning'); return; }
+            var actionSel = document.getElementById('bulkAIActionSelect');
+            var action = (actionSel && actionSel.value) ? actionSel.value : 'credits';
+
+            if (action === 'delete') {
+                showConfirm('Eliminar os ' + emails.length + ' cliente(s) selecionado(s)? Esta ação não pode ser desfeita.', function () {
+                    showBulkLoading(true);
+                    document.getElementById('modalBulkAI').classList.add('hidden');
+                    google.script.run.withSuccessHandler(function (res) {
+                        showBulkLoading(false);
+                        notify(res && res.message ? res.message : 'Cliente(s) eliminado(s).', 'success');
+                        loadCentral(document.getElementById('tabInativos') && document.getElementById('tabInativos').classList.contains('bg-flowly-midnight') ? 'Inativo' : 'Ativo');
+                    }).withFailureHandler(function (err) {
+                        showBulkLoading(false);
+                        notify('Erro: ' + (err || 'Falha ao eliminar'), 'error');
+                    }).massDeleteClients(emails);
+                });
+                return;
+            }
+
+            if (action === 'credits') {
+                var num = parseInt(document.getElementById('bulkAICreditsInput').value, 10);
+                if (isNaN(num) || num < 0) { notify('Insira uma quantidade válida de créditos.', 'warning'); return; }
+                showBulkLoading(true);
+                document.getElementById('modalBulkAI').classList.add('hidden');
+                google.script.run.withSuccessHandler(function (res) {
+                    showBulkLoading(false);
+                    notify(res && res.message ? res.message : 'Créditos IA atualizados.', 'success');
+                    loadCentral(document.getElementById('tabInativos') && document.getElementById('tabInativos').classList.contains('bg-flowly-midnight') ? 'Inativo' : 'Ativo');
+                }).withFailureHandler(function (err) {
+                    showBulkLoading(false);
+                    notify('Erro: ' + (err || 'Falha ao atualizar créditos'), 'error');
+                }).massUpdateCredits(emails, num);
+                return;
+            }
+
+            if (action === 'plan') {
+                var planSel = document.getElementById('bulkAIPlanSelect');
+                var planName = (planSel && planSel.value) ? String(planSel.value).trim() : '';
+                if (!planName) { notify('Selecione um plano.', 'warning'); return; }
+                showBulkLoading(true);
+                document.getElementById('modalBulkAI').classList.add('hidden');
+                google.script.run.withSuccessHandler(function (res) {
+                    showBulkLoading(false);
+                    notify(res && res.message ? res.message : 'Plano atualizado.', 'success');
+                    loadCentral(document.getElementById('tabInativos') && document.getElementById('tabInativos').classList.contains('bg-flowly-midnight') ? 'Inativo' : 'Ativo');
+                }).withFailureHandler(function (err) {
+                    showBulkLoading(false);
+                    notify('Erro: ' + (err || 'Falha ao atualizar plano'), 'error');
+                }).massUpdatePlans(emails, planName);
+                return;
+            }
+
+            if (action === 'status') {
+                var statusSel = document.getElementById('bulkAIStatusSelect');
+                var statusVal = (statusSel && statusSel.value) ? String(statusSel.value).trim() : 'Ativo';
+                showBulkLoading(true);
+                document.getElementById('modalBulkAI').classList.add('hidden');
+                google.script.run.withSuccessHandler(function (res) {
+                    showBulkLoading(false);
+                    notify(res && res.message ? res.message : 'Estado atualizado.', 'success');
+                    loadCentral(document.getElementById('tabInativos') && document.getElementById('tabInativos').classList.contains('bg-flowly-midnight') ? 'Inativo' : 'Ativo');
+                }).withFailureHandler(function (err) {
+                    showBulkLoading(false);
+                    notify('Erro: ' + (err || 'Falha ao atualizar estado'), 'error');
+                }).massUpdateStatus(emails, statusVal);
+                return;
+            }
+        } catch (e) {
+            notify('Erro inesperado: ' + (e && e.message ? e.message : String(e)), 'error');
+        }
+    }
+
+    function setCentralTab(status) {
+        const btnAtivo = document.getElementById('tabAtivos');
+        const btnInativo = document.getElementById('tabInativos');
+        if (!btnAtivo || !btnInativo) return;
+
+        if (status === 'Ativo') {
+            btnAtivo.className = "flex-1 py-3 rounded-xl text-[10px] font-black bg-flowly-midnight text-white shadow-md transition-all";
+            btnInativo.className = "flex-1 py-3 rounded-xl text-[10px] font-black text-slate-400 hover:bg-white transition-all";
+        } else {
+            btnInativo.className = "flex-1 py-3 rounded-xl text-[10px] font-black bg-flowly-midnight text-white shadow-md transition-all";
+            btnAtivo.className = "flex-1 py-3 rounded-xl text-[10px] font-black text-slate-400 hover:bg-white transition-all";
+        }
+        loadCentral(status);
+    }
+
+    function loadCentral(status) {
+        const list = document.getElementById('clientList');
+        if (!list) return;
+
+        list.innerHTML = '<div class="text-center py-20 opacity-30 animate-pulse text-[10px] font-black uppercase tracking-widest">Sincronizando...</div>';
+
+        google.script.run.withSuccessHandler(res => {
+            list.innerHTML = '';
+            clientsCache = res.clients || [];
+            if (res.plans) plansCache = res.plans;
+
+            const mrrEl = document.getElementById('centralMRRValue');
+            if (mrrEl) mrrEl.textContent = (parseFloat(res.mrrTotal) || 0).toFixed(2) + '€';
+
+            clientsCache.filter(c => c.status === status).forEach(c => {
+                const searchText = ((c.name || '') + ' ' + (c.email || '')).toLowerCase().replace(/"/g, '');
+                const nameEsc = (c.name || '').replace(/"/g, '&quot;');
+                const emailEsc = (c.email || '').replace(/"/g, '&quot;');
+
+                list.innerHTML += `
+            <div class="central-client-card bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-50 mb-4 animate-slide-up relative" data-search="${searchText}">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex items-start gap-3">
+                        <input type="checkbox" class="central-client-checkbox accent-flowly-primary w-5 h-5 mt-0.5 rounded" data-email="${emailEsc}">
+                        <div><p class="font-black text-lg text-flowly-midnight dark:text-slate-50 uppercase tracking-tighter">${(c.name || '').replace(/</g, '&lt;')}</p><p class="text-[10px] text-slate-400 font-bold mt-1">${(c.email || '').replace(/</g, '&lt;')}</p></div>
+                    </div>
+                    <span class="px-3 py-1 bg-cyan-50 text-flowly-primary text-[9px] font-black rounded-full uppercase border border-cyan-100">${(c.plan || '').replace(/</g, '&lt;')}</span>
+                </div>
+                <div class="grid grid-cols-4 gap-3 border-t border-slate-50 pt-5">
+                    <button type="button" data-action="open-sheet" data-sheet-id="${c.sheetId || ''}" class="bg-emerald-50 text-emerald-600 p-3.5 rounded-2xl flex justify-center hover:bg-emerald-100 transition shadow-sm"><i data-lucide="sheet" class="w-5 h-5"></i></button>
+                    <button type="button" data-action="impersonate" data-email="${emailEsc}" data-name="${nameEsc}" class="bg-cyan-50 text-cyan-600 p-3.5 rounded-2xl flex justify-center hover:bg-cyan-100 transition shadow-sm"><i data-lucide="venetian-mask" class="w-5 h-5"></i></button>
+                    <button type="button" data-action="openEdit" data-email="${emailEsc}" class="bg-slate-50 text-slate-600 p-3.5 rounded-2xl flex justify-center hover:bg-slate-100 transition shadow-sm"><i data-lucide="settings-2" class="w-5 h-5"></i></button>
+                    <button type="button" data-action="resendInvite" data-email="${emailEsc}" class="bg-flowly-warning/10 text-flowly-warning p-3.5 rounded-2xl flex justify-center hover:bg-amber-100 transition shadow-sm"><i data-lucide="mail" class="w-5 h-5"></i></button>
+                </div>
+            </div>`;
+            });
+            if (window.lucide) lucide.createIcons();
+        }).getSuperAdminDashboardData(_ctxEmail());
+    }
+
+    function initCentralListeners() {
+        if (window._centralListenersInit) return;
+        window._centralListenersInit = true;
+
+        const searchInput = document.getElementById('centralSearchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                const q = (this.value || '').toLowerCase().trim();
+                document.querySelectorAll('.central-client-card').forEach(card => {
+                    const search = (card.getAttribute('data-search') || '');
+                    card.style.display = (!q || search.indexOf(q) !== -1) ? '' : 'none';
+                });
+            });
+        }
+
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+
+            if (!['open-bulk-modal', 'close-bulk-modal', 'bulk-faturar', 'bulk-apply-desconto', 'bulk-apply-oferta', 'bulk-mass-credits', 'bulk-mass-plan'].includes(action)) return;
+
+            if (action === 'open-bulk-modal') {
+                const emails = getSelectedClientEmails();
+                if (!emails.length) { notify('Seleciona pelo menos um cliente.', 'warning'); return; }
+                document.getElementById('bulk_desconto').value = 0;
+                document.getElementById('bulk_desconto_permanente').checked = true;
+                const bulkVal = document.getElementById('bulk_desconto_validade');
+                bulkVal.value = '';
+                bulkVal.disabled = true;
+                document.getElementById('bulk_mensalidades_oferta').value = 0;
+                document.getElementById('modalBulkActions').classList.remove('hidden');
+                if (window.lucide) lucide.createIcons();
+            } else if (action === 'close-bulk-modal') {
+                document.getElementById('modalBulkActions').classList.add('hidden');
+            } else if (action === 'bulk-faturar') {
+                const emails = getSelectedClientEmails();
+                if (!emails.length) { notify('Seleciona pelo menos um cliente.', 'warning'); return; }
+                showBulkLoading(true);
+                google.script.run.withSuccessHandler(function (res) {
+                    showBulkLoading(false);
+                    document.getElementById('modalBulkActions').classList.add('hidden');
+                    const ok = (res.results || []).filter(r => r.success).length;
+                    notify(ok + ' cliente(s) faturado(s).', ok ? 'success' : 'info');
+                    loadCentral(document.getElementById('tabInativos').classList.contains('bg-flowly-midnight') ? 'Inativo' : 'Ativo');
+                }).withFailureHandler(function (err) {
+                    showBulkLoading(false);
+                    notify('Erro: ' + (err || 'Falha na faturação'), 'error');
+                }).insertMonthlySaaSInvoiceBatch(emails);
+            } else if (action === 'bulk-apply-desconto') {
+                const emails = getSelectedClientEmails();
+                if (!emails.length) { notify('Seleciona pelo menos um cliente.', 'warning'); return; }
+                const desconto = parseFloat(document.getElementById('bulk_desconto').value) || 0;
+                const permanente = document.getElementById('bulk_desconto_permanente').checked;
+                const validade = (document.getElementById('bulk_desconto_validade').value || '').trim();
+                const settings = {
+                    desconto: desconto,
+                    descontoTipo: permanente ? 'Permanente' : 'Temporário',
+                    descontoExpira: permanente ? '' : validade
+                };
+                showBulkLoading(true);
+                google.script.run.withSuccessHandler(function (res) {
+                    showBulkLoading(false);
+                    document.getElementById('modalBulkActions').classList.add('hidden');
+                    const ok = (res.results || []).filter(r => r.success).length;
+                    notify(ok + ' cliente(s) atualizado(s).', ok ? 'success' : 'info');
+                    loadCentral(document.getElementById('tabInativos').classList.contains('bg-flowly-midnight') ? 'Inativo' : 'Ativo');
+                }).withFailureHandler(function (err) {
+                    showBulkLoading(false);
+                    notify('Erro: ' + (err || 'Falha ao aplicar'), 'error');
+                }).applyBulkSettings(emails, settings);
+            } else if (action === 'bulk-apply-oferta') {
+                const emails = getSelectedClientEmails();
+                if (!emails.length) { notify('Seleciona pelo menos um cliente.', 'warning'); return; }
+                const mensalidadesOferta = Math.max(0, parseInt(document.getElementById('bulk_mensalidades_oferta').value) || 0);
+                const settings = { mensalidadesOferta: mensalidadesOferta };
+                showBulkLoading(true);
+                google.script.run.withSuccessHandler(function (res) {
+                    showBulkLoading(false);
+                    document.getElementById('modalBulkActions').classList.add('hidden');
+                    const ok = (res.results || []).filter(r => r.success).length;
+                    notify(ok + ' cliente(s) atualizado(s).', ok ? 'success' : 'info');
+                    loadCentral(document.getElementById('tabInativos').classList.contains('bg-flowly-midnight') ? 'Inativo' : 'Ativo');
+                }).withFailureHandler(function (err) {
+                    showBulkLoading(false);
+                    notify('Erro: ' + (err || 'Falha ao aplicar'), 'error');
+                }).applyBulkSettings(emails, settings);
+            } else if (action === 'bulk-mass-credits') {
+                document.getElementById('modalBulkActions').classList.add('hidden');
+                openBulkAIModal('credits');
+            } else if (action === 'bulk-mass-plan') {
+                document.getElementById('modalBulkActions').classList.add('hidden');
+                openBulkAIModal('plan');
+            }
+        });
+
+        var bulkAIActionSelect = document.getElementById('bulkAIActionSelect');
+        var btnBulkAIConfirm = document.getElementById('btnBulkAIConfirm');
+        if (bulkAIActionSelect) bulkAIActionSelect.addEventListener('change', updateBulkAIBlocks);
+        if (btnBulkAIConfirm) btnBulkAIConfirm.addEventListener('click', confirmBulkAIAction);
+
+        const tabAtivos = document.getElementById('tabAtivos');
+        const tabInativos = document.getElementById('tabInativos');
+        if (tabAtivos) tabAtivos.addEventListener('click', () => setCentralTab('Ativo'));
+        if (tabInativos) tabInativos.addEventListener('click', () => setCentralTab('Inativo'));
+
+        const btnNavEquipaFlowly = document.getElementById('btnNavEquipaFlowly');
+        const centralClientesSection = document.getElementById('centralClientesSection');
+        const centralEquipaSection = document.getElementById('centralEquipaSection');
+        const btnAddTeamMember = document.getElementById('btnAddTeamMember');
+
+        if (btnNavEquipaFlowly) {
+            btnNavEquipaFlowly.addEventListener('click', function () {
+                if (!centralEquipaSection || !centralClientesSection) return;
+                const isEquipaVisible = !centralEquipaSection.classList.contains('hidden');
+                if (isEquipaVisible) {
+                    centralEquipaSection.classList.add('hidden');
+                    centralClientesSection.classList.remove('hidden');
+                    btnNavEquipaFlowly.classList.remove('border-flowly-primary', 'bg-cyan-50');
+                    if (btnAddTeamMember) btnAddTeamMember.classList.add('hidden');
+                } else {
+                    centralEquipaSection.classList.remove('hidden');
+                    centralClientesSection.classList.add('hidden');
+                    btnNavEquipaFlowly.classList.add('border-flowly-primary', 'bg-cyan-50');
+                    if (btnAddTeamMember && isSuperAdminUser()) btnAddTeamMember.classList.remove('hidden');
+                    loadFlowlyTeam();
+                }
+            });
+        }
+
+        const btnNavPlanos = document.getElementById('btnNavPlanos');
+        const btnOpenClientForm = document.getElementById('btnOpenClientForm');
+        if (btnNavPlanos) btnNavPlanos.addEventListener('click', () => openModalConfigPlanos());
+        if (btnOpenClientForm) btnOpenClientForm.addEventListener('click', openClientForm);
+
+        const clientList = document.getElementById('clientList');
+        if (clientList) {
+            clientList.addEventListener('click', function (e) {
+                const btn = e.target.closest('[data-action]');
+                if (!btn) return;
+                const action = btn.dataset.action;
+                const email = btn.dataset.email || btn.getAttribute('data-email') || '';
+                const name = (btn.dataset.name || btn.getAttribute('data-name') || '').replace(/&quot;/g, '"');
+                const sheetId = btn.dataset.sheetId || btn.getAttribute('data-sheet-id') || '';
+
+                if (action === 'open-sheet' && sheetId) window.open('https://docs.google.com/spreadsheets/d/' + sheetId);
+                else if (action === 'impersonate') impersonate(email, name);
+                else if (action === 'openEdit') openEditClient(email);
+                else if (action === 'resendInvite') resendInvite(email);
+            });
+        }
+
+        const plansList = document.getElementById('plansList');
+        if (plansList) {
+            plansList.addEventListener('click', function (e) {
+                const btn = e.target.closest('[data-action="edit-plan"], [data-action="delete-plan"]');
+                if (!btn) return;
+                const id = btn.dataset.planId || btn.getAttribute('data-plan-id') || '';
+                const name = (btn.dataset.planName || btn.getAttribute('data-plan-name') || '').replace(/&quot;/g, '"');
+
+                if (btn.dataset.action === 'edit-plan') editPlan(id);
+                else if (btn.dataset.action === 'delete-plan') deletePlan(id, name);
+            });
+        }
+    }
+
+    // ==========================================
+    // 3. EQUIPA FLOWLY
+    // ==========================================
+
+    function loadFlowlyTeam() {
+        const tbody = document.getElementById('flowlyTeamTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">A carregar...</td></tr>';
+        var currentEmail = (currentUser && currentUser.email) ? String(currentUser.email).trim().toLowerCase() : '';
+
+        google.script.run.withSuccessHandler(function (res) {
+            if (!res.success) {
+                tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-red-500">' + (res.error || 'Erro ao carregar') + '</td></tr>';
+                return;
+            }
+            const team = res.team || [];
+            if (team.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">Nenhum membro na equipa</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = team.map(function (m) {
+                var emailEsc = (m.email || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                var nomeEsc = (m.nome || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                var cargoEsc = (m.cargo || '').replace(/</g, '&lt;');
+                var permsJson = (m.permissions && typeof m.permissions === 'object') ? JSON.stringify(m.permissions) : (typeof m.permissions === 'string' && m.permissions) ? m.permissions : '{}';
+                var permsEsc = permsJson.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                var isSelf = currentEmail && String(m.email || '').trim().toLowerCase() === currentEmail;
+                var isOwnerPrincipal = String(m.email || '').trim().toLowerCase() === 'josereis1995@gmail.com';
+                var protectRow = isSelf || isOwnerPrincipal;
+                var blockDisabled = protectRow ? ' disabled' : '';
+                var deleteDisabled = protectRow ? ' disabled' : '';
+                var blockClass = m.status === 'Ativo' ? 'bg-red-50 text-flowly-danger hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100';
+                var blockLabel = m.status === 'Ativo' ? 'Bloquear' : 'Ativar';
+                var blockTitle = m.status === 'Ativo' ? 'Bloquear membro' : 'Ativar membro';
+                var actionsHtml = '';
+
+                if (isSuperAdminUser()) {
+                    actionsHtml = '<div class="flex items-center gap-1.5">' +
+                        '<button type="button" data-action="team-edit" data-email="' + emailEsc + '" data-nome="' + nomeEsc + '" data-cargo="' + cargoEsc + '" data-permissions="' + permsEsc + '" class="p-2 rounded-lg bg-cyan-50 dark:bg-cyan-900/30 text-flowly-primary hover:bg-cyan-100 transition" title="Editar"><i data-lucide="pencil" class="w-4 h-4"></i></button>' +
+                        '<button type="button" data-action="team-toggle" data-email="' + emailEsc + '" data-status="' + (m.status || '') + '"' + blockDisabled + ' class="p-2 rounded-lg ' + blockClass + ' transition' + (blockDisabled ? ' opacity-50 cursor-not-allowed' : '') + '" title="' + blockTitle + '">' + blockLabel + '</button>' +
+                        '<button type="button" data-action="team-delete" data-email="' + emailEsc + '" data-nome="' + nomeEsc + '"' + deleteDisabled + ' class="p-2 rounded-lg bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-flowly-danger transition' + (deleteDisabled ? ' opacity-50 cursor-not-allowed' : '') + '" title="Eliminar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>' +
+                        '</div>';
+                } else {
+                    actionsHtml = '<span class="text-slate-400 text-[10px]">—</span>';
+                }
+
+                return '<tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50"><td class="px-4 py-3 font-bold text-flowly-midnight dark:text-slate-50">' + nomeEsc + '</td><td class="px-4 py-3 text-slate-600 dark:text-slate-400">' + (m.email || '').replace(/</g, '&lt;') + '</td><td class="px-4 py-3"><span class="px-2 py-0.5 rounded bg-cyan-50 dark:bg-cyan-900/30 text-flowly-primary text-[10px] font-black">' + cargoEsc + '</span></td><td class="px-4 py-3"><span class="px-2 py-0.5 rounded ' + (m.status === 'Ativo' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600' : 'bg-slate-100 dark:bg-slate-700 text-slate-500') + ' text-[10px] font-black">' + (m.status || '').replace(/</g, '&lt;') + '</span></td><td class="px-4 py-3">' + actionsHtml + '</td></tr>';
+            }).join('');
+
+            if (window.lucide) lucide.createIcons();
+
+            var tableWrap = tbody.closest('div');
+            if (tableWrap) {
+                tableWrap.querySelectorAll('[data-action="team-edit"]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        var perms = {};
+                        try {
+                            var raw = btn.dataset.permissions || '{}';
+                            if (raw) perms = JSON.parse(raw.replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+                        } catch (e) { }
+                        openEditTeamMemberModal(btn.dataset.email, btn.dataset.nome, btn.dataset.cargo, perms);
+                    });
+                });
+                tableWrap.querySelectorAll('[data-action="team-toggle"]').forEach(function (btn) {
+                    if (!btn.disabled) btn.addEventListener('click', function () { toggleTeamMemberStatus(btn.dataset.email); });
+                });
+                tableWrap.querySelectorAll('[data-action="team-delete"]').forEach(function (btn) {
+                    if (!btn.disabled) btn.addEventListener('click', function () { confirmDeleteTeamMember(btn.dataset.email, btn.dataset.nome); });
+                });
+            }
+        }).withFailureHandler(function () {
+            tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-red-500">Erro de ligação</td></tr>';
+        }).getFlowlyTeam(_ctxEmail());
+    }
+
+    function openEditTeamMemberModal(email, nome, cargo, permissions) {
+        document.getElementById('editTeamMemberEmail').value = email || '';
+        document.getElementById('editTeamMemberEmailDisplay').textContent = email || '';
+        document.getElementById('editTeamMemberNome').value = (nome || '').replace(/&quot;/g, '"');
+        document.getElementById('editTeamMemberCargo').value = cargo || 'Admin';
+        renderAdminFeatures('adminTeamModulesContainer', permissions || {});
+        document.getElementById('editTeamMemberModal').classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function submitEditTeamMember() {
+        var email = document.getElementById('editTeamMemberEmail').value || '';
+        var nome = (document.getElementById('editTeamMemberNome').value || '').trim();
+        var cargo = document.getElementById('editTeamMemberCargo').value || 'Admin';
+
+        if (!email || !email.includes('@')) { notify('Email inválido', 'error'); return; }
+
+        var perms = {};
+        var container = document.getElementById('adminTeamModulesContainer');
+        if (container) {
+            container.querySelectorAll('input[type="checkbox"][data-feature-id]').forEach(function (cb) {
+                perms[cb.dataset.featureId] = !!cb.checked;
+            });
+        }
+
+        document.getElementById('editTeamMemberModal').classList.add('hidden');
+        google.script.run.withSuccessHandler(function (res) {
+            if (res.success) {
+                notify(res.message || 'Membro atualizado.', 'success');
+                if (res.updatedUser && currentUser && res.updatedUser.email === currentUser.email) {
+                    currentUser = Object.assign({}, currentUser, res.updatedUser);
+                    currentUser._userPermissions = res.updatedUser.permissions;
+                    try { localStorage.setItem('flowly_user', JSON.stringify(currentUser)); } catch (e) { }
+                    applyClientConfig(res.updatedUser.permissions || res.updatedUser.planConfig);
+                    applyAccessControl(res.updatedUser.planConfig || res.updatedUser.permissions);
+                    applyCreditButtonsVisibility();
+                    location.reload();
+                } else {
+                    loadFlowlyTeam();
+                }
+            } else {
+                notify(res.error || 'Erro ao atualizar', 'error');
+            }
+        }).withFailureHandler(function () { notify('Erro de ligação', 'error'); }).updateTeamMember(email, { nome: nome, cargo: cargo, permissions: perms });
+    }
+
+    function toggleTeamMemberStatus(email) {
+        if (!email) return;
+        google.script.run.withSuccessHandler(function (res) {
+            if (res.success) {
+                notify(res.message || 'Status alterado.', 'success');
+                loadFlowlyTeam();
+            } else {
+                notify(res.error || 'Erro', 'error');
+            }
+        }).withFailureHandler(function () { notify('Erro de ligação', 'error'); }).toggleTeamMemberStatus(email);
+    }
+
+    function confirmDeleteTeamMember(email, nome) {
+        var name = (nome || email || '').replace(/&quot;/g, '"');
+        if (!confirm('Eliminar permanentemente "' + name + '" da equipa?')) return;
+        google.script.run.withSuccessHandler(function (res) {
+            if (res.success) {
+                notify(res.message || 'Membro eliminado.', 'success');
+                loadFlowlyTeam();
+            } else {
+                notify(res.error || 'Erro', 'error');
+            }
+        }).withFailureHandler(function () { notify('Erro de ligação', 'error'); }).deleteTeamMember(email);
+    }
+
+    function submitAddTeamMember() {
+        const nome = (document.getElementById('addTeamMemberNome').value || '').trim();
+        const email = (document.getElementById('addTeamMemberEmail').value || '').trim();
+        const cargo = document.getElementById('addTeamMemberCargo').value || 'Admin';
+
+        if (!email || !email.includes('@')) { notify('Email inválido', 'error'); return; }
+        if (!nome) { notify('Nome obrigatório', 'error'); return; }
+
+        document.getElementById('addTeamMemberModal').classList.add('hidden');
+        google.script.run.withSuccessHandler(function (res) {
+            if (res.success) {
+                notify(res.message || 'Membro adicionado. Email enviado.', 'success');
+                loadFlowlyTeam();
+                document.getElementById('addTeamMemberNome').value = '';
+                document.getElementById('addTeamMemberEmail').value = '';
+                document.getElementById('addTeamMemberCargo').value = 'Admin';
+            } else {
+                notify(res.error || 'Erro ao adicionar', 'error');
+            }
+        }).withFailureHandler(function () { notify('Erro de ligação', 'error'); }).addFlowlyTeamMember({ nome: nome, email: email, cargo: cargo });
+    }
+
+    // ==========================================
+    // 4. PLANOS E PREVIEWS
+    // ==========================================
+
+    function fetchPlans() {
+        var loadingState = document.getElementById('plansLoadingState');
+        var tableContainer = document.getElementById('plansTableContainer');
+        var tableBody = document.getElementById('plansTableBody');
+
+        _plansLoading = true;
+        if (loadingState) loadingState.style.display = 'flex';
+        if (tableContainer) tableContainer.classList.add('hidden');
+
+        google.script.run
+            .withFailureHandler(function (err) {
+                _plansLoading = false;
+                if (loadingState) loadingState.style.display = 'none';
+                if (tableContainer) {
+                    tableContainer.classList.remove('hidden');
+                    tableBody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-[#EF4444] text-sm font-bold">Erro ao carregar planos. Tente novamente.</td></tr>';
+                }
+            })
+            .withSuccessHandler(function (res) {
+                _plansLoading = false;
+                if (loadingState) loadingState.style.display = 'none';
+                if (tableContainer) tableContainer.classList.remove('hidden');
+
+                if (!res || res.success === false) {
+                    tableBody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-[#EF4444] text-sm font-bold">Não foi possível carregar os planos. Verifique permissões.</td></tr>';
+                    return;
+                }
+
+                plansCache = Array.isArray(res.plans) ? res.plans : [];
+
+                if (!plansCache.length) {
+                    tableBody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-slate-500 text-sm font-bold">Ainda não existem planos configurados.</td></tr>';
+                    return;
+                }
+
+                var tableRows = '';
+                plansCache.forEach(function (p) {
+                    var nameEsc = (p.name || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                    var planId = p.id;
+                    tableRows += '<tr class="bg-white hover:bg-[#F8FAFC] transition">' +
+                        '<td class="px-6 py-3 text-sm font-bold text-[#020617]">' + (p.name || '').replace(/</g, '&lt;') + '</td>' +
+                        '<td class="px-6 py-3 text-sm font-bold text-[#020617]">' + (p.price != null ? p.price : '0') + '€/mês</td>' +
+                        '<td class="px-6 py-3 text-right"><div class="flex gap-2 justify-end">' +
+                        '<button type="button" data-action="edit-plan" data-plan-id="' + planId + '" class="p-2 rounded-xl text-[#06B6D4] hover:bg-[#06B6D4] hover:text-white transition"><i data-lucide="edit-3" class="w-4 h-4"></i></button>' +
+                        '<button type="button" data-action="delete-plan" data-plan-id="' + planId + '" data-plan-name="' + nameEsc + '" class="p-2 rounded-xl text-[#EF4444] hover:bg-[#EF4444] hover:text-white transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>' +
+                        '</div></td></tr>';
+                });
+
+                tableBody.innerHTML = tableRows;
+                if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+            })
+            .getPlanosData();
+    }
+
+    function loadPlanos() { fetchPlans(); }
+
+    function openConfigPlanos() { openModalConfigPlanos(); }
+
+    function openModalConfigPlanos() {
+        var modal = document.getElementById('modalConfigPlanos');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            fetchPlans();
+            if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+        }
+    }
+
+    function closeModalConfigPlanos() {
+        var modal = document.getElementById('modalConfigPlanos');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    }
+
+    function renderLivePreview(nameId, priceId, discountId, permId, dateId, targetId) {
+        try {
+            const target = document.getElementById(targetId);
+            if (!target) return;
+            const name = document.getElementById(nameId)?.value || 'Novo Produto';
+            const price = parseFloat(document.getElementById(priceId)?.value) || 0;
+            const discount = Math.min(100, Math.max(0, parseFloat(document.getElementById(discountId)?.value) || 0));
+            const isPerm = document.getElementById(permId)?.checked || false;
+            const dateStr = document.getElementById(dateId)?.value || '';
+            const discountPercent = discount / 100;
+            const currentPrice = Math.max(0, price - (price * discountPercent));
+            let daysLeft = -1;
+
+            if (dateStr) {
+                const exp = new Date(dateStr + 'T23:59:59');
+                daysLeft = Math.ceil((exp - new Date()) / (1000 * 60 * 60 * 24));
+            }
+
+            let html = '<div class="bg-[#FFFFFF] border border-flowly-border rounded-2xl p-6 relative">';
+            html += '<h3 class="text-lg font-black text-[#020617] uppercase mb-1">' + name + '</h3>';
+
+            if (discount > 0 && (isPerm || daysLeft >= 0)) {
+                html += '<div class="flex items-baseline gap-2 mb-4"><span class="text-lg text-[#64748B] line-through font-bold">' + price.toFixed(2) + '€</span><span class="text-3xl text-[#10B981] font-black">' + currentPrice.toFixed(2) + '€</span></div>';
+                if (isPerm) html += '<div class="absolute top-0 right-0 bg-[#06B6D4] text-[#FFFFFF] text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl rounded-tr-xl">Promoção Fundador</div>';
+                else html += '<div class="absolute top-0 right-0 bg-[#FACC15] text-[#020617] text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl rounded-tr-xl">Termina em ' + daysLeft + ' dias</div>';
+            } else {
+                html += '<div class="flex items-baseline gap-1 mb-4"><span class="text-3xl text-[#020617] font-black">' + price.toFixed(2) + '€</span></div>';
+            }
+            html += '</div>';
+            target.innerHTML = html;
+        } catch (error) { console.error('Erro seguro no renderLivePreview:', error); }
+    }
+
+    function updatePlanPreview() { renderLivePreview('pf_name', 'pf_price', 'pf_desconto', 'pf_desconto_permanente', 'pf_desconto_validade', 'livePlanPreview'); }
+    function updatePackPreview() { renderLivePreview('aiPackName', 'aiPackPrice', 'pack_desconto', 'pack_desconto_permanente', 'pack_desconto_validade', 'livePackPreview'); }
+
+    function prefillPlanForm(p) {
+        if (!p) return;
+        document.getElementById('pf_id').value = p.id != null ? String(p.id) : '';
+        document.getElementById('pf_name').value = p.name || '';
+        document.getElementById('pf_price').value = p.price != null ? p.price : '';
+        document.getElementById('pf_desconto').value = p.desconto != null ? p.desconto : 0;
+
+        var isPerm = (p.descontoTipo || '') === 'Permanente' || p.descontoPerm === true || p.desconto_permanente === true;
+        document.getElementById('pf_desconto_permanente').checked = isPerm;
+
+        var validadeEl = document.getElementById('pf_desconto_validade');
+        if (validadeEl) {
+            validadeEl.disabled = isPerm;
+            var expira = p.descontoExpira || p.descontoValidade || p.desconto_validade || '';
+            validadeEl.value = (!isPerm && expira) ? (typeof expira === 'string' ? (expira.indexOf('/') !== -1 ? fromDBDateToInput(expira) : expira) : (typeof formatDateForInput === 'function' ? formatDateForInput(expira) : expira)) : '';
+        }
+
+        document.getElementById('pf_mensalidades_oferta').value = p.mensalidadesOferta != null ? p.mensalidadesOferta : 0;
+        var pfAi = document.getElementById('planAiCredits');
+        if (pfAi) pfAi.value = p.aiCredits != null && p.aiCredits !== '' ? p.aiCredits : '';
+
+        document.getElementById('pf_mod_dash').checked = !!(p.modules && p.modules.dashboard);
+        document.getElementById('pf_mod_log').checked = !!(p.modules && p.modules.logistica);
+        document.getElementById('pf_mod_rh').checked = !!(p.modules && p.modules.rh);
+        document.getElementById('pf_mod_cc').checked = !!(p.modules && p.modules.cc);
+        document.getElementById('pf_mod_access').checked = !!(p.modules && p.modules.access);
+        document.getElementById('pf_mod_ia').checked = p.modules && p.modules.ia !== false;
+    }
+
+    function showPlanFormAndBindEvents() {
+        var form = document.getElementById('planForm');
+        if (form) {
+            form.style.display = 'flex';
+            form.classList.remove('hidden');
+        }
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();['pf_name', 'pf_price', 'pf_desconto', 'pf_desconto_validade'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.oninput = updatePlanPreview;
+        });
+
+        var permEl = document.getElementById('pf_desconto_permanente');
+        var contEl = document.getElementById('pf_desconto_container');
+        if (permEl) {
+            permEl.onchange = function (e) {
+                if (contEl) contEl.classList.toggle('hidden', e.target.checked);
+                if (e.target.checked && document.getElementById('pf_desconto_validade')) document.getElementById('pf_desconto_validade').value = '';
+                updatePlanPreview();
+            };
+            if (contEl) contEl.classList.toggle('hidden', permEl.checked);
+        }
+        updatePlanPreview();
+    }
+
+    function editPlan(planId) {
+        try {
+            var form = document.getElementById('planForm');
+            if (!form) { notify("Erro: Modal de Planos não encontrado!", "error"); return; }
+
+            var p = (typeof plansCache !== 'undefined' && plansCache) ? plansCache.find(function (x) { return x.id == planId || String(x.id) === String(planId); }) : null;
+            if (!p) {
+                notify("Plano não encontrado na cache. A recarregar lista...", "info");
+                fetchPlans();
+                return;
+            }
+            prefillPlanForm(p);
+            showPlanFormAndBindEvents();
+        } catch (err) { console.error('Erro editPlan:', err); }
+    }
+
+    function openPlanForm(id = null) {
+        try {
+            var form = document.getElementById('planForm');
+            if (!form) { notify("Erro: Modal de Planos não encontrado!", "error"); return; }
+
+            document.getElementById('pf_id').value = id != null && id !== '' ? String(id) : '';
+            document.getElementById('pf_name').value = '';
+            document.getElementById('pf_price').value = '';
+            document.getElementById('pf_desconto').value = 0;
+            document.getElementById('pf_desconto_permanente').checked = true;
+            document.getElementById('pf_desconto_validade').value = '';
+            document.getElementById('pf_mensalidades_oferta').value = 0;
+
+            var pfAi = document.getElementById('planAiCredits');
+            if (pfAi) pfAi.value = '';
+
+            document.getElementById('pf_mod_dash').checked = false;
+            document.getElementById('pf_mod_log').checked = false;
+            document.getElementById('pf_mod_rh').checked = false;
+            document.getElementById('pf_mod_cc').checked = false;
+            document.getElementById('pf_mod_access').checked = false;
+            document.getElementById('pf_mod_ia').checked = false;
+
+            if (id != null && id !== '' && typeof plansCache !== 'undefined') {
+                var p = plansCache.find(function (x) { return x.id == id || String(x.id) === String(id); });
+                if (p) prefillPlanForm(p);
+            }
+            showPlanFormAndBindEvents();
+        } catch (err) { console.error('Erro eventos PlanForm:', err); }
+    }
+
+    function savePlan() {
+        const idVal = document.getElementById('pf_id').value;
+        const pfDescontoPerm = document.getElementById('pf_desconto_permanente').checked;
+        const pfValidade = (document.getElementById('pf_desconto_validade').value || '').trim();
+
+        const p = {
+            id: (idVal === "" || idVal === null) ? "NOVO" : idVal,
+            name: document.getElementById('pf_name').value,
+            price: parseFloat(document.getElementById('pf_price').value) || 0,
+            desconto: parseFloat(document.getElementById('pf_desconto').value) || 0,
+            descontoTipo: pfDescontoPerm ? 'Permanente' : 'Temporário',
+            descontoExpira: pfDescontoPerm ? '' : pfValidade,
+            mensalidadesOferta: Math.max(0, parseInt(document.getElementById('pf_mensalidades_oferta').value) || 0),
+            aiCredits: (function () { var el = document.getElementById('planAiCredits'); var v = el ? el.value : ''; return (v !== '' && v != null) ? (parseInt(v, 10) || 0) : ''; })(),
+            modules: {
+                dashboard: document.getElementById('pf_mod_dash').checked,
+                logistica: document.getElementById('pf_mod_log').checked,
+                rh: document.getElementById('pf_mod_rh').checked,
+                cc: document.getElementById('pf_mod_cc').checked,
+                access: document.getElementById('pf_mod_access').checked,
+                ia: document.getElementById('pf_mod_ia').checked
+            }
+        };
+
+        if (!p.name) return notify("Nome do plano obrigatório.", "warning");
+
+        const prevPlan = idVal ? plansCache.find(x => String(x.id) === String(idVal)) : null;
+        const priceChanged = prevPlan && (parseFloat(prevPlan.price) !== p.price);
+        const descontoChanged = prevPlan && (
+            (parseFloat(prevPlan.desconto || 0) !== p.desconto) ||
+            ((prevPlan.descontoTipo || 'Permanente') !== p.descontoTipo) ||
+            ((prevPlan.descontoExpira || '') !== p.descontoExpira) ||
+            (parseInt(prevPlan.mensalidadesOferta || 0) !== p.mensalidadesOferta)
+        );
+        const planConditionsChanged = priceChanged || descontoChanged;
+
+        notify("A gravar...", "info");
+        google.script.run.withFailureHandler(err => notify("Erro: " + err, "error")).withSuccessHandler(res => {
+            if (!res.success) return notify("Erro: " + (res.error || ""), "error");
+
+            notify("Plano gravado!", "success");
+            document.getElementById('planForm').style.display = 'none';
+            loadPlanos();
+
+            if (planConditionsChanged && prevPlan) {
+                showConfirm("Alterou as condições do Plano " + p.name + ". Deseja aplicar estas novas condições a TODOS os clientes atuais deste plano?", function () {
+                    const settings = {
+                        desconto: p.desconto,
+                        descontoTipo: p.descontoTipo,
+                        descontoExpira: p.descontoExpira,
+                        mensalidadesOferta: p.mensalidadesOferta
+                    };
+                    google.script.run.withSuccessHandler(function (syncRes) {
+                        notify((syncRes.updated || 0) + " cliente(s) sincronizado(s).", "success");
+                        const tabInativos = document.getElementById('tabInativos');
+                        loadCentral(tabInativos && tabInativos.classList.contains('bg-flowly-midnight') ? 'Inativo' : 'Ativo');
+                    }).withFailureHandler(function (e) { notify("Erro ao sincronizar: " + e, "error"); }).syncClientsWithMasterPlan(p.name, settings);
+                });
+            }
+        }).savePlanData(p);
+    }
+
+    function deletePlan(id, name) {
+        showConfirm(`Eliminar o plano "${name}"? Esta ação é irreversível.`, () => {
+            notify("A eliminar plano...", "info");
+            google.script.run
+                .withFailureHandler(err => notify("Erro: " + err, "error"))
+                .withSuccessHandler(res => {
+                    if (res && res.success) { notify("Plano eliminado.", "success"); loadPlanos(); }
+                    else notify("Erro ao eliminar.", "error");
+                }).deletePlanData(id);
+        });
+    }
+
+    // ==========================================
+    // 5. PACOTES DE IA (CREDITS STORE)
+    // ==========================================
+
+    function openAIPacksListModal() {
+        try { document.getElementById('modalAIPacksList')?.classList.remove('hidden'); loadAIPacksUI(); } catch (e) { console.error(e); }
+    }
+
+    function closeAIPacksListModal() {
+        try { document.getElementById('modalAIPacksList')?.classList.add('hidden'); } catch (e) { console.error(e); }
+    }
+
+    function openAIPackFormModal(pack = null) {
+        try {
+            document.getElementById('modalAIPacksList')?.classList.add('hidden');
+            document.getElementById('modalAIPackForm')?.classList.remove('hidden');
+
+            if (!pack) resetAIPackForm();
+            else if (document.getElementById('aiPackCredits')) document.getElementById('aiPackCredits').value = pack.credits != null ? pack.credits : '';['aiPackName', 'aiPackPrice', 'pack_desconto', 'pack_desconto_validade'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.oninput = updatePackPreview;
+            });
+
+            const permEl = document.getElementById('pack_desconto_permanente');
+            const contEl = document.getElementById('pack_desconto_container');
+
+            if (permEl) {
+                permEl.onchange = function (e) {
+                    if (contEl) contEl.classList.toggle('hidden', e.target.checked);
+                    if (e.target.checked && document.getElementById('pack_desconto_validade')) document.getElementById('pack_desconto_validade').value = '';
+                    updatePackPreview();
+                };
+                if (contEl) contEl.classList.toggle('hidden', permEl.checked);
+            }
+            updatePackPreview();
+        } catch (err) { console.error('Erro a ligar eventos do PackForm:', err); }
+    }
+
+    function closeAIPackFormModal() {
+        try {
+            document.getElementById('modalAIPackForm')?.classList.add('hidden');
+            document.getElementById('modalAIPacksList')?.classList.remove('hidden');
+        } catch (e) { console.error(e); }
+    }
+
+    function loadAIPacksUI() {
+        try {
+            var container = document.getElementById('aiPacksListContainer');
+            if (!container) return;
+            container.innerHTML = '<div class="flex justify-center py-8"><i class="fas fa-spinner fa-spin text-2xl text-[#06B6D4]"></i></div>';
+
+            google.script.run.withSuccessHandler(function (packs) {
+                aiPacksCache = packs || [];
+                var html = '';
+                if (aiPacksCache.length === 0) {
+                    container.innerHTML = '<div class="text-center py-10 border-2 border-dashed border-flowly-border rounded-2xl text-[#64748B]">Nenhum pacote.</div>';
+                    return;
+                }
+                aiPacksCache.forEach(function (p) {
+                    html += '<div class="flex items-center justify-between bg-[#F8FAFC] border border-flowly-border p-5 rounded-2xl hover:border-[#06B6D4] transition-all mb-3 shadow-sm">';
+                    html += '  <div class="text-left"><h5 class="text-[#020617] font-black uppercase text-[10px] tracking-widest">' + p.name + '</h5>';
+                    html += '  <p class="text-xs text-[#64748B] font-bold mt-1">' + p.credits + ' CRÉDITOS • <span class="text-[#10B981]">' + parseFloat(p.price).toFixed(2) + '€</span></p></div>';
+                    html += '  <div class="flex gap-2">';
+                    html += '    <button type="button" onclick="initStripeCheckout(\'' + p.id + '\')" class="flex-1 sm:flex-none px-4 py-2.5 bg-[#10B981] text-white rounded-xl font-bold text-xs shadow-sm hover:bg-[#059669] transition-all">Comprar Agora</button>';
+                    html += '    <button onclick="editAIPack(\'' + p.id + '\')" class="w-10 h-10 flex items-center justify-center bg-[#06B6D4] text-white rounded-xl shadow-sm hover:bg-[#020617] transition-all"><i class="fas fa-edit"></i></button>';
+                    html += '    <button onclick="deleteAIPack(\'' + p.id + '\')" class="w-10 h-10 flex items-center justify-center bg-white text-[#EF4444] border border-[#EF4444] rounded-xl shadow-sm hover:bg-[#EF4444] hover:text-white transition-all"><i class="fas fa-trash-alt"></i></button>';
+                    html += '  </div></div>';
+                });
+                container.innerHTML = html;
+            }).getAIPacksConfig();
+        } catch (e) { console.error("Erro na lista IA:", e); }
+    }
+
+    function editAIPack(id) {
+        var p = (typeof aiPacksCache !== 'undefined' && aiPacksCache) ? aiPacksCache.find(function (x) { return x.id === id; }) : null;
+        if (!p) return;
+        try {
+            document.getElementById('aiPackId').value = p.id || '';
+            document.getElementById('aiPackName').value = p.name || '';
+            document.getElementById('aiPackCredits').value = p.credits != null ? p.credits : 0;
+            document.getElementById('aiPackPrice').value = p.price != null ? p.price : 0;
+            var linkEl = document.getElementById('aiPackLink');
+            if (linkEl) linkEl.value = p.link || '';
+            var statusEl = document.getElementById('aiPackStatus');
+            if (statusEl) statusEl.value = (p.status || 'Ativo').toString().trim() || 'Ativo';
+            var descEl = document.getElementById('pack_desconto');
+            if (descEl) descEl.value = p.desconto != null ? p.desconto : 0;
+            var permCb = document.getElementById('pack_desconto_permanente');
+            if (permCb) permCb.checked = p.descontoPerm === true;
+            var valEl = document.getElementById('pack_desconto_validade');
+            if (valEl) valEl.value = p.descontoValidade || '';
+
+            openAIPackFormModal(p);
+        } catch (e) { console.error(e); }
+    }
+
+    function initStripeCheckout(packId) {
+        notify('A abrir pagamento seguro...', 'info');
+
+        google.script.run.withSuccessHandler(function (res) {
+            if (res.success && res.url) {
+                window.top.location.href = res.url;
+            } else {
+                notify('Erro: ' + res.message, 'error');
+            }
+        }).createStripeCheckout(packId);
+    }
+
+    function deleteAIPack(id) {
+        if (!confirm('Apagar este pacote?')) return;
+        try {
+            google.script.run.withSuccessHandler(function (res) {
+                if (res && res.success) { notify(res.message || 'Pacote apagado.', 'success'); loadAIPacksUI(); }
+            }).withFailureHandler(function (err) { notify('Erro: ' + (err || ''), 'error'); }).deleteAIPackConfig(id);
+        } catch (e) { console.error(e); }
+    }
+
+    function resetAIPackForm() {
+        try {
+            ['aiPackId', 'aiPackName', 'aiPackCredits', 'aiPackPrice', 'aiPackLink', 'pack_desconto', 'pack_desconto_validade'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                if (id === 'aiPackPrice' || id === 'aiPackCredits' || id === 'pack_desconto') el.value = 0;
+                else el.value = '';
+            });
+            var statusEl = document.getElementById('aiPackStatus');
+            if (statusEl) statusEl.value = 'Ativo';
+            var perm = document.getElementById('pack_desconto_permanente');
+            if (perm) perm.checked = true;
+        } catch (e) { console.error(e); }
+    }
+
+    function saveAIPack() {
+        try {
+            const idEl = document.getElementById('aiPackId');
+            const packId = (idEl && idEl.value) ? idEl.value.trim() : '';
+            const name = document.getElementById('aiPackName')?.value || '';
+            const price = parseFloat(document.getElementById('aiPackPrice')?.value) || 0;
+            const credits = parseInt(document.getElementById('aiPackCredits')?.value) || 0;
+            const link = (document.getElementById('aiPackLink')?.value || '').trim();
+            const status = (document.getElementById('aiPackStatus')?.value || 'Ativo').trim();
+            const desconto = parseFloat(document.getElementById('pack_desconto')?.value) || 0;
+            const descontoPerm = document.getElementById('pack_desconto_permanente')?.checked || false;
+            const descontoValidade = document.getElementById('pack_desconto_validade')?.value || '';
+
+            if (!name || price <= 0) { notify('Preencha o nome e o preço do pacote.', 'warning'); return; }
+            if (credits <= 0) { notify('Defina a quantidade de Créditos IA que este pacote fornece.', 'warning'); return; }
+            if (desconto > 0 && !descontoPerm && !descontoValidade) { notify('Defina uma data de validade para o desconto.', 'warning'); return; }
+
+            const payload = { name, price, credits, link, status, desconto, descontoPerm, descontoValidade };
+            if (packId) payload.id = packId;
+            const formModal = document.getElementById('modalAIPackForm');
+            const formCard = document.getElementById('modalAIPackCard');
+            if (formCard) formCard.style.opacity = '0.5';
+
+            const hasGAS = typeof google !== 'undefined' && google && google.script && google.script.run && typeof google.script.run.saveAIPackConfig === 'function';
+
+            if (!hasGAS) {
+                if (formCard) formCard.style.opacity = '1';
+                notify('Integração com Google Apps Script indisponível neste contexto.', 'error');
+                return;
+            }
+
+            google.script.run.withSuccessHandler(function (res) {
+                if (formCard) formCard.style.opacity = '1';
+                if (res && res.success) {
+                    notify(res.message, 'success');
+                    closeAIPackFormModal();
+                    if (typeof loadAIPacksUI === 'function') loadAIPacksUI();
+                } else {
+                    notify('Erro: ' + (res ? res.message : 'Resposta vazia do servidor'), 'error');
+                }
+            }).withFailureHandler(function (err) {
+                if (formCard) formCard.style.opacity = '1';
+                notify('Erro de ligação: ' + err, 'error');
+            }).saveAIPackConfig(payload);
+        } catch (err) {
+            const formCard = document.getElementById('modalAIPackCard');
+            if (formCard) formCard.style.opacity = '1';
+            notify('Erro inesperado ao gravar o Pack IA: ' + err, 'error');
+        }
+    }
+
+    // ==========================================
+    // 6. CLIENTE SAAS: CRIAR E EDITAR
+    // ==========================================
+
+    function openClientForm() {
+        const sel = document.getElementById('nc_plan_select');
+        if (sel) {
+            sel.innerHTML = (plansCache || []).map(p => `<option value="${(p.name || '').replace(/"/g, '&quot;')}">${(p.name || '').replace(/</g, '&lt;')} (${p.price != null ? p.price : 0}€/mês)</option>`).join('') || '<option value="Basic">Basic (29€/mês)</option><option value="Pro">Pro (59€/mês)</option>';
+            sel.value = (plansCache && plansCache[0]) ? plansCache[0].name : 'Basic';
+        }
+        document.getElementById('modalNewClient').classList.remove('hidden');
+        renderFeatures('nc_modules_container', typeof DEFAULT_PLAN_CONFIG !== 'undefined' ? DEFAULT_PLAN_CONFIG : {});
+    }
+
+    function createClient() {
+        const name = document.getElementById('nc_name').value.trim();
+        const email = document.getElementById('nc_email').value.trim();
+        const plan = document.getElementById('nc_plan_select').value;
+        const desconto = parseFloat(document.getElementById('nc_desconto').value) || 0;
+        const descontoTipo = document.getElementById('nc_checkDescontoPermanente').checked ? 'Permanente' : 'Temporário';
+        const descontoExpira = document.getElementById('nc_inputDescontoValidade').value || '';
+        const modulesObj = collectPermissionsFromContainer('nc_modules_container');
+
+        if (!name) return notify("Preencha o nome da empresa.", "warning");
+        if (!email || !email.includes('@')) return notify("Email do gestor inválido.", "warning");
+
+        document.getElementById('modalNewClient').classList.add('hidden');
+        notify("A criar infraestrutura SaaS...", "info");
+
+        google.script.run
+            .withFailureHandler(err => notify("Erro ao criar cliente: " + err, "error"))
+            .withSuccessHandler(res => {
+                if (res && res.success) {
+                    notify("Cliente criado e convite enviado!", "success");
+                    document.getElementById('nc_name').value = '';
+                    document.getElementById('nc_email').value = '';
+                    document.getElementById('nc_desconto').value = 0;
+                    document.getElementById('nc_desconto_val').textContent = '0%';
+                    document.getElementById('nc_checkDescontoPermanente').checked = true;
+                    document.getElementById('nc_inputDescontoValidade').value = '';
+                    document.getElementById('nc_inputDescontoValidade').disabled = true;
+                    loadCentral('Ativo');
+                } else {
+                    notify("Erro: " + (res ? res.error : "Resposta inválida"), "error");
+                }
+            }).createNewClient(name, email, plan, desconto, descontoTipo, descontoExpira, modulesObj);
+    }
+
+    function openEditClient(email) {
+        const c = clientsCache.find(x => x.email === email);
+        if (!c) return notify("Cliente não encontrado", "error");
+
+        document.getElementById('ec_email_orig').value = c.email;
+        document.getElementById('ec_name').value = c.name;
+        const statusEl = document.getElementById('ec_status');
+        if (statusEl) statusEl.value = c.status || 'Ativo';
+
+        const planSel = document.getElementById('ec_plan');
+        if (planSel) {
+            planSel.innerHTML = (plansCache || []).map(p => `<option value="${(p.name || '').replace(/"/g, '&quot;')}">${(p.name || '').replace(/</g, '&lt;')} (${p.price != null ? p.price : 0}€/mês)</option>`).join('') || '<option value="Basic">Basic (29€/mês)</option><option value="Pro">Pro (59€/mês)</option>';
+            planSel.value = c.plan || c.saasPlan || ((plansCache && plansCache[0]) ? plansCache[0].name : 'Basic');
+        }
+
+        document.getElementById('ec_desconto').value = c.desconto != null ? c.desconto : 0;
+        document.getElementById('ec_desconto_val').textContent = (c.desconto != null ? c.desconto : 0) + '%';
+
+        const checkPerm = document.getElementById('checkDescontoPermanente');
+        const inputVal = document.getElementById('inputDescontoValidade');
+        const isPermanente = (c.descontoTipo || 'Permanente') === 'Permanente';
+        if (checkPerm) checkPerm.checked = isPermanente;
+        if (inputVal) {
+            inputVal.disabled = isPermanente;
+            inputVal.value = (c.descontoExpira && !isPermanente) ? (typeof c.descontoExpira === 'string' ? (typeof fromDBDateToInput === 'function' ? fromDBDateToInput(c.descontoExpira) : c.descontoExpira) : (typeof formatDateForInput === 'function' ? formatDateForInput(c.descontoExpira) : c.descontoExpira)) : '';
+        }
+
+        document.getElementById('ec_mensalidades_oferta').value = c.mensalidadesOferta != null ? c.mensalidadesOferta : 0;
+        const ecAiCredits = document.getElementById('ec_aiCredits');
+        if (ecAiCredits) ecAiCredits.value = c.aiCredits != null && c.aiCredits !== '' ? c.aiCredits : '';
+
+        renderFeatures('ec_modules_container', c.modules || {});
+
+        updateEcValorFinal();
+        document.getElementById('modalEditClient').classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function updateEcValorFinal() {
+        const planSel = document.getElementById('ec_plan');
+        const planName = planSel ? planSel.value : 'Basic';
+        const plan = (plansCache || []).find(p => p.name === planName) || { price: 29 };
+        const avenca = parseFloat(plan.price) || 0;
+        const desconto = parseFloat(document.getElementById('ec_desconto').value) || 0;
+        const mensalidadesOferta = parseInt(document.getElementById('ec_mensalidades_oferta').value) || 0;
+        const valorFinal = (avenca * (1 - desconto / 100)).toFixed(2);
+
+        document.getElementById('ec_desconto_val').textContent = desconto + '%';
+        document.getElementById('ec_valor_final').textContent = valorFinal + '€';
+
+        const custoProx = document.getElementById('ec_custo_prox');
+        if (custoProx) custoProx.classList.toggle('hidden', mensalidadesOferta <= 0);
+    }
+
+    function saveClientChanges() {
+        const email = document.getElementById('ec_email_orig').value;
+        const statusEl = document.getElementById('ec_status');
+        const planEl = document.getElementById('ec_plan');
+
+        const p = {
+            name: document.getElementById('ec_name').value,
+            status: statusEl ? statusEl.value : 'Ativo',
+            plan: planEl ? planEl.value : null,
+            desconto: parseFloat(document.getElementById('ec_desconto').value) || 0,
+            descontoTipo: document.getElementById('checkDescontoPermanente').checked ? 'Permanente' : 'Temporário',
+            descontoExpira: document.getElementById('inputDescontoValidade').value || '',
+            mensalidadesOferta: Math.max(0, parseInt(document.getElementById('ec_mensalidades_oferta').value) || 0),
+            saasPlan: planEl ? planEl.value : null,
+            aiCredits: document.getElementById('ec_aiCredits').value,
+            modules: collectPermissionsFromContainer('ec_modules_container')
+        };
+
+        notify("Atualizando...", "info");
+        google.script.run
+            .withFailureHandler(err => notify("Erro: " + err, "error"))
+            .withSuccessHandler(res => {
+                if (res && res.success === false) return notify("Erro ao guardar.", "error");
+                notify("Cliente atualizado!", "success");
+                document.getElementById('modalEditClient').classList.add('hidden');
+                loadCentral('Ativo');
+            }).saveClientSettings(email, p);
+    }
+
+    // ==========================================
+    // 7. UTILITÁRIOS E LISTENERS DO ADMIN
+    // ==========================================
+
+    function initDescontoValidadeListeners() {
+        if (window._descontoValidadeInit) return;
+        window._descontoValidadeInit = true;
+
+        const modalEdit = document.getElementById('modalEditClient');
+        if (modalEdit) {
+            modalEdit.addEventListener('change', function (e) {
+                if (e.target.id === 'checkDescontoPermanente') {
+                    const input = document.getElementById('inputDescontoValidade');
+                    if (input) {
+                        input.disabled = e.target.checked;
+                        if (e.target.checked) input.value = '';
+                    }
+                }
+            });
+        }
+
+        const modalNew = document.getElementById('modalNewClient');
+        if (modalNew) {
+            modalNew.addEventListener('change', function (e) {
+                if (e.target.id === 'nc_checkDescontoPermanente') {
+                    const input = document.getElementById('nc_inputDescontoValidade');
+                    if (input) {
+                        input.disabled = e.target.checked;
+                        if (e.target.checked) input.value = '';
+                    }
+                }
+                if (e.target.id === 'nc_desconto') {
+                    const valEl = document.getElementById('nc_desconto_val');
+                    if (valEl) valEl.textContent = (e.target.value || 0) + '%';
+                }
+            });
+
+            const ncDesconto = document.getElementById('nc_desconto');
+            if (ncDesconto) {
+                ncDesconto.addEventListener('input', function () {
+                    const valEl = document.getElementById('nc_desconto_val');
+                    if (valEl) valEl.textContent = (this.value || 0) + '%';
+                });
+            }
+        }
+    }
+
+    function formatDateForInput(d) {
+        if (!d) return '';
+        const dt = d instanceof Date ? d : new Date(d);
+        if (isNaN(dt.getTime())) return '';
+        return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+    }
+
+    function fromDBDateToInput(dbStr) {
+        if (!dbStr) return '';
+        const s = String(dbStr).trim();
+        const pts = s.split('/');
+        if (pts.length === 3) return pts[2] + '-' + pts[1].padStart(2, '0') + '-' + pts[0].padStart(2, '0');
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? '' : (d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'));
+    }
+
+    function resendInvite(email) {
+        notify("A reenviar acesso...", "info");
+        google.script.run.withSuccessHandler(() => notify("Enviado!", "success")).resendInviteEmail(email);
+    }
+
+    // ==========================================
+    // 8. EXPORTAÇÃO PARA O OBJETO GLOBAL WINDOW
+    // ==========================================
+    
+    // Cache variables (accessíveis globalmente se necessário)
+    window.clientsCache = clientsCache;
+    window.plansCache = plansCache;
+    window.aiPacksCache = aiPacksCache;
+    window._plansLoading = _plansLoading;
+
+    // Funções principais
+    window.getSelectedClientEmails = getSelectedClientEmails;
+    window.showBulkLoading = showBulkLoading;
+    window.updateBulkAIBlocks = updateBulkAIBlocks;
+    window.openBulkAIModal = openBulkAIModal;
+    window.confirmBulkAIAction = confirmBulkAIAction;
+    window.setCentralTab = setCentralTab;
+    window.loadCentral = loadCentral;
+    window.initCentralListeners = initCentralListeners;
+
+    // Funções da equipa
+    window.loadFlowlyTeam = loadFlowlyTeam;
+    window.openEditTeamMemberModal = openEditTeamMemberModal;
+    window.submitEditTeamMember = submitEditTeamMember;
+    window.toggleTeamMemberStatus = toggleTeamMemberStatus;
+    window.confirmDeleteTeamMember = confirmDeleteTeamMember;
+    window.submitAddTeamMember = submitAddTeamMember;
+
+    // Funções de planos
+    window.fetchPlans = fetchPlans;
+    window.loadPlanos = loadPlanos;
+    window.openConfigPlanos = openConfigPlanos;
+    window.openModalConfigPlanos = openModalConfigPlanos;
+    window.closeModalConfigPlanos = closeModalConfigPlanos;
+    window.renderLivePreview = renderLivePreview;
+    window.updatePlanPreview = updatePlanPreview;
+    window.updatePackPreview = updatePackPreview;
+    window.prefillPlanForm = prefillPlanForm;
+    window.showPlanFormAndBindEvents = showPlanFormAndBindEvents;
+    window.editPlan = editPlan;
+    window.openPlanForm = openPlanForm;
+    window.savePlan = savePlan;
+    window.deletePlan = deletePlan;
+
+    // Funções de pacotes IA
+    window.openAIPacksListModal = openAIPacksListModal;
+    window.closeAIPacksListModal = closeAIPacksListModal;
+    window.openAIPackFormModal = openAIPackFormModal;
+    window.closeAIPackFormModal = closeAIPackFormModal;
+    window.loadAIPacksUI = loadAIPacksUI;
+    window.editAIPack = editAIPack;
+    window.initStripeCheckout = initStripeCheckout;
+    window.deleteAIPack = deleteAIPack;
+    window.resetAIPackForm = resetAIPackForm;
+    window.saveAIPack = saveAIPack;
+
+    // Funções de clientes
+    window.openClientForm = openClientForm;
+    window.createClient = createClient;
+    window.openEditClient = openEditClient;
+    window.updateEcValorFinal = updateEcValorFinal;
+    window.saveClientChanges = saveClientChanges;
+
+    // Utilitários
+    window.initDescontoValidadeListeners = initDescontoValidadeListeners;
+    window.formatDateForInput = formatDateForInput;
+    window.fromDBDateToInput = fromDBDateToInput;
+    window.resendInvite = resendInvite;
+
+})();

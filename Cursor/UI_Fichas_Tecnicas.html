@@ -1,0 +1,153 @@
+<div id="view-fichas-tecnicas">
+<!-- VIEW: FICHAS TÉCNICAS -->
+<div id="viewFichasTecnicas" class="view-section hidden space-y-6 animate-slide-up">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-black text-flowly-midnight dark:text-white tracking-tight">Fichas Técnicas</h2>
+            <p class="text-sm font-bold text-slate-400 dark:text-slate-500 mt-0.5">Gestão de Receituários & Rentabilidade</p>
+        </div>
+        <button onclick="openFtModal()" class="bg-flowly-primary text-white px-5 py-3 rounded-xl font-black shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all text-sm flex gap-2 items-center">
+            <i data-lucide="plus" class="w-4 h-4"></i> Criar Ficha Técnica
+        </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="theme-card p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center bg-white">
+            <p class="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-1">TOTAL FICHAS</p>
+            <h3 id="ftTotalCount" class="text-2xl font-black text-slate-800">0</h3>
+        </div>
+        <div class="theme-card p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center bg-white">
+            <p class="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-1">CUSTO MÉDIO</p>
+            <h3 id="ftAvgCost" class="text-2xl font-black text-rose-500">0.00 €</h3>
+        </div>
+        <div class="theme-card p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center bg-white">
+            <p class="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-1">POTENCIAL MARGEM</p>
+            <h3 id="ftAvgMargin" class="text-2xl font-black text-emerald-500">0%</h3>
+        </div>
+    </div>
+
+    <!-- Search -->
+    <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3">
+        <i data-lucide="search" class="w-5 h-5 text-slate-300 ml-2"></i>
+        <input type="text" id="searchTermFT" placeholder="Pesquisar fichas técnicas..." class="w-full bg-transparent border-none text-sm font-bold outline-none text-slate-600 placeholder:text-slate-400" onkeyup="filterFichasTecnicas()">
+    </div>
+
+    <!-- Cards Layout -->
+    <div id="ftCardsContainer" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <p class="text-slate-400 text-sm italic py-4">A carregar fichas técnicas...</p>
+    </div>
+</div>
+
+<!-- Modal Creation/Edit -->
+<div id="modalFichaTecnica" class="hidden fixed inset-0 z-[25000] bg-black/60 flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-slide-up border border-slate-100">
+        <div class="bg-flowly-midnight px-6 py-5 flex justify-between items-center shrink-0">
+            <div>
+                <h3 id="ftModalTitle" class="text-white font-black text-lg">Nova Ficha Técnica</h3>
+                <p class="text-[10px] text-cyan-400 font-bold uppercase tracking-widest mt-0.5">Configuração e Ingredientes</p>
+            </div>
+            <button type="button" onclick="closeFtModal()" class="bg-white/10 p-2.5 rounded-xl hover:bg-white/20 transition"><i data-lucide="x" class="w-4 h-4 text-white"></i></button>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1 bg-slate-50 dark:bg-slate-900/50">
+           <input type="hidden" id="ftIdToEdit" value="">
+           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div class="md:col-span-2 space-y-4">
+                  <div>
+                      <label class="text-[10px] font-black uppercase text-slate-500 tracking-wider">Nome do Artigo Final *</label>
+                      <input type="text" id="ftName" class="mt-1 w-full p-4 bg-white border border-slate-200 rounded-xl font-bold text-sm shadow-sm outline-none focus:ring-2 focus:ring-flowly-primary/30 text-slate-700" placeholder="Ex: Bolo de Chocolate">
+                  </div>
+                  <div class="grid grid-cols-2 gap-4">
+                      <div>
+                          <label class="text-[10px] font-black uppercase text-slate-500 tracking-wider">Categoria</label>
+                          <input type="text" id="ftCategory" class="mt-1 w-full p-4 bg-white border border-slate-200 rounded-xl font-bold text-sm shadow-sm outline-none focus:ring-2 focus:ring-flowly-primary/30 text-slate-700" placeholder="Ex: Sobremesas">
+                      </div>
+                      <div>
+                          <label class="text-[10px] font-black uppercase text-slate-500 tracking-wider">Logo do Cliente (Opcional)</label>
+                          <input type="file" id="ftLogoUpload" accept="image/*" class="mt-1 w-full p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-600" onchange="previewFTLogo(event)">
+                          <input type="hidden" id="ftLogoBase64" value="">
+                      </div>
+                  </div>
+                  <div>
+                      <label class="text-[10px] font-black uppercase text-slate-500 tracking-wider">Ingredientes</label>
+                      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 mt-1">
+                          <div class="grid grid-cols-12 gap-2 mb-2 text-[10px] font-black uppercase text-slate-400 tracking-wider px-1">
+                              <div class="col-span-6">Artigo (Base de Dados)</div>
+                              <div class="col-span-3">Qtd</div>
+                              <div class="col-span-2">Unid</div>
+                              <div class="col-span-1"></div>
+                          </div>
+                          <div id="ftIngredientsList" class="space-y-2">
+                              <!-- Dynamic Lines -->
+                          </div>
+                          <button type="button" onclick="addFTIngredientLine()" class="mt-3 text-xs font-bold text-flowly-primary hover:text-cyan-600 flex items-center gap-1.5 px-2 py-1"><i data-lucide="plus-circle" class="w-4 h-4"></i> Adicionar Ingrediente</button>
+                      </div>
+                  </div>
+                  <div>
+                      <label class="text-[10px] font-black uppercase text-slate-500 tracking-wider">Modo de Preparação</label>
+                      <textarea id="ftPrep" rows="4" class="mt-1 w-full p-4 bg-white border border-slate-200 rounded-xl font-bold text-sm shadow-sm outline-none focus:ring-2 focus:ring-flowly-primary/30 text-slate-700" placeholder="Instruções de confeção..."></textarea>
+                  </div>
+              </div>
+
+              <!-- Resumo Lateral -->
+              <div class="space-y-4">
+                  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 sticky top-0">
+                      <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">Rentabilidade & Pricing</p>
+                      
+                      <div class="flex justify-between items-center mb-3">
+                          <span class="text-xs font-bold text-slate-500">Custo Ref. Ingredientes</span>
+                          <span id="ftSummaryCost" class="font-black text-rose-500">0.00 €</span>
+                      </div>
+                      
+                      <div class="flex justify-between items-center pt-3 border-t border-slate-100">
+                          <span class="text-xs font-bold text-slate-500">Preço Sugerido (P.V.P)</span>
+                          <span id="ftSummarySuggested" class="font-black text-flowly-primary text-lg">0.00 €</span>
+                      </div>
+                      <div class="flex justify-between items-center mt-1">
+                          <span class="text-[10px] font-bold text-slate-400">Margem Estimada</span>
+                          <span id="ftSummaryMargin" class="font-black text-[10px] text-emerald-500 px-2 py-0.5 bg-emerald-50 rounded-md">-- %</span>
+                      </div>
+
+                      <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-100">
+                          <span class="text-xs font-bold text-slate-500">Preço Venda Final</span>
+                          <div class="flex items-center gap-1 w-24">
+                              <input type="number" id="ftFinalPrice" step="0.01" min="0" class="w-full text-right bg-slate-50 border border-slate-200 rounded-lg p-1.5 font-black text-slate-700 text-sm focus:ring-2 focus:ring-flowly-primary/30 outline-none" placeholder="0.00">
+                              <span class="text-xs font-bold text-slate-400">€</span>
+                          </div>
+                      </div>
+
+                      <button type="button" id="btnSimulateFT" onclick="simulateFTCost()" class="w-full mt-6 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold text-xs hover:bg-slate-200 transition active:scale-95 flex items-center justify-center gap-2"><i data-lucide="calculator" class="w-4 h-4"></i> Simular Custos REAIS</button>
+
+                      <p class="text-[9px] text-slate-400 leading-tight mt-3 text-justify">O sistema analisa em tempo-real a sua Base de Dados de entradas (Compras) para calcular o custo unitário exato de cada ingrediente, aplicando a margem de rentabilidade definida.</p>
+                  </div>
+
+                  <div id="ftPreviewLogoContainer" class="hidden">
+                      <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Logo Cliente</p>
+                      <img id="ftPreviewLogoImg" src="" class="w-full h-auto max-h-32 object-contain bg-white rounded-xl border border-slate-200 p-2">
+                  </div>
+              </div>
+           </div>
+        </div>
+        <div class="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-3 shrink-0">
+            <button type="button" onclick="closeFtModal()" class="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold rounded-xl text-sm transition">Cancelar</button>
+            <button type="button" onclick="saveFT()" id="btnSaveFT" class="px-6 py-3 bg-flowly-primary hover:bg-cyan-400 text-white font-black rounded-xl text-sm shadow-md transition flex items-center gap-2">Guardar Ficha Técnica</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal PDF Export -->
+<div id="modalFTPdfExport" class="hidden fixed inset-0 z-[60000] bg-white flex flex-col overflow-y-auto">
+   <div class="fixed top-0 left-0 right-0 bg-slate-900 border-b border-slate-800 px-6 py-3 flex justify-between items-center z-[60001] shadow-xl">
+       <div class="flex items-center gap-4">
+           <button type="button" onclick="document.getElementById('modalFTPdfExport').classList.add('hidden')" class="text-slate-400 hover:text-white transition"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+           <h3 class="text-white font-bold">Documento Técnico</h3>
+       </div>
+       <button type="button" onclick="printFT()" class="bg-flowly-primary hover:bg-cyan-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow transition flex gap-2 items-center"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir / PDF</button>
+   </div>
+   <div id="ftPdfContent" class="mt-20 mx-auto max-w-3xl min-h-[1000px] bg-white shadow-2xl p-10 md:p-14 mb-20 border border-slate-200 print:shadow-none print:m-0 print:border-none print:p-0">
+       <!-- Dynamic PDF HTML goes here -->
+   </div>
+</div>
+< / d i v >  
+ 

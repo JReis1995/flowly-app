@@ -1,0 +1,650 @@
+(function() {
+// ==========================================
+// 📝 JS_Fichas_Tecnicas
+// ==========================================
+
+console.log("[DEBUG] Starting script JS_Fichas_Tecnicas...");
+
+try {
+    window.openFtModal = function() { try { _ftOpenFtModal(); } catch(e) { window.reportModuleError('Fichas Técnicas - openFtModal', e); } };
+    window.saveFT = function() { try { _ftSaveFT(); } catch(e) { window.reportModuleError('Fichas Técnicas - saveFT', e); } };
+    window.loadFichasTecnicas = function() { try { _ftInternalLoad(); } catch(e) { window.reportModuleError('Fichas Técnicas - loadFichasTecnicas', e); } };
+    window.filterFichasTecnicas = function() { try { _ftFilterFichasTecnicas(); } catch(e) { window.reportModuleError('Fichas Técnicas - filterFichasTecnicas', e); } };
+    window.editFT = function(id) { try { _ftEditFT(id); } catch(e) { window.reportModuleError('Fichas Técnicas - editFT', e); } };
+    window.deleteFT = function(id) { try { _ftDeleteFT(id); } catch(e) { window.reportModuleError('Fichas Técnicas - deleteFT', e); } };
+    window._currentFTIdForReport = null;
+    window.openFTReport = function(id) { try { window._currentFTIdForReport = id; document.getElementById('modalFTReportConfirm').classList.remove('hidden'); } catch(e) { window.reportModuleError('Fichas Técnicas - openFTReport', e); } };
+    window.confirmFTReport = function(includeCosts) { try { document.getElementById('modalFTReportConfirm').classList.add('hidden'); if(window._currentFTIdForReport) { _ftOpenFTReport(window._currentFTIdForReport, includeCosts); } } catch(e) { window.reportModuleError('Fichas Técnicas - confirmFTReport', e); } };
+    window.addFTIngredientLine = function(n, q, u, c) { try { _ftAddFTIngredientLine(n, q, u, c); } catch(e) { window.reportModuleError('Fichas Técnicas - addFTIngredientLine', e); } };
+    
+    // Novas exportações obrigatórias
+    window.refreshFTList = function() { try { _ftRefreshFTList(); } catch(e) { window.reportModuleError('Fichas Técnicas - refreshFTList', e); } };
+    window.closeFtModal = function() { try { _ftCloseFtModal(); } catch(e) { window.reportModuleError('Fichas Técnicas - closeFtModal', e); } };
+    window.previewFTLogo = function(e) { try { _ftPreviewFTLogo(e); } catch(err) { window.reportModuleError('Fichas Técnicas - previewFTLogo', err); } };
+    window.simulateFTCost = function() { try { _ftSimulateFTCost(); } catch(e) { window.reportModuleError('Fichas Técnicas - simulateFTCost', e); } };
+    window.printFT = function() { try { _ftPrintFT(); } catch(e) { window.reportModuleError('Fichas Técnicas - printFT', e); } };
+
+    console.log("[DEBUG] Global functions loaded OK.");
+} catch(e) {
+    console.error("[DEBUG] Error setting up globals:", e);
+}
+
+let ftListCache = [];
+
+function _ftInternalLoad() {
+    console.log("[DEBUG] _ftInternalLoad -> userEmail resolvido:", typeof window._ctxEmail === 'function' ? window._ctxEmail() : "Função indisponível");
+    _ftRefreshFTList();
+}
+
+function _ftRefreshFTList() {
+    const email = (typeof _ctxEmail === 'function') ? _ctxEmail() : null;
+    
+    if (!email) {
+        console.warn("[DEBUG] _ftRefreshFTList: Email não disponível ainda. A tentar novamente em 500ms...");
+        setTimeout(() => _ftRefreshFTList(), 500);
+        return;
+    }
+
+    const container = document.getElementById('ftCardsContainer');
+    if (!container) return;
+    container.innerHTML = '<div class="col-span-full flex items-center justify-center p-10"><i class="fas fa-spinner fa-spin text-2xl text-flowly-primary"></i></div>';
+    
+    google.script.run
+        .withSuccessHandler(rawRes => {
+            console.log("[DEBUG] withSuccessHandler -> Tipo do dado recebido:", typeof rawRes, "| Valor:", rawRes);
+            // Se o servidor retornar uma string (JSON), fazemos o parse aqui
+            let res = rawRes;
+            try {
+                if (typeof rawRes === 'string') res = JSON.parse(rawRes);
+            } catch (errParse) {
+                console.error("[DEBUG] Erro ao processar JSON do servidor:", errParse, rawRes);
+            }
+
+            if (res && res.success) {
+                ftListCache = Array.isArray(res.data) ? res.data : [];
+                console.log("[DEBUG] Módulo Fichas Técnicas carregado com sucesso. Total itens:", ftListCache.length);
+                _ftRenderFTCards(ftListCache);
+                _ftUpdateFTStats(ftListCache);
+            } else {
+                console.error("[DEBUG] Erro retornado pelo servidor em _ftRefreshFTList. Resposta completa:", res);
+                const err = res ? res.error : "Resposta nula ou inválida do servidor";
+                notify("Erro: " + err, "error");
+                container.innerHTML = '<div class="col-span-full p-4 border border-rose-200 bg-rose-50 text-rose-600 rounded-xl text-center"><p class="text-sm font-bold">Erro a aceder à base de dados de Fichas Técnicas.</p></div>';
+            }
+        })
+        .withFailureHandler(err => {
+            console.error("[DEBUG] _ftRefreshFTList -> falha na chamada de rede. Detalhes:", err);
+            if (window.reportModuleError) window.reportModuleError('Fichas Técnicas - getFichasTecnicas (rede/servidor)', err);
+            notify("Erro: " + err.toString(), "error");
+            container.innerHTML = '<div class="col-span-full p-4 border border-rose-200 bg-rose-50 text-rose-600 rounded-xl text-center"><p class="text-sm font-bold">Erro de ligação.</p></div>';
+        })
+        .getFichasTecnicas(email);
+}
+
+function _ftUpdateFTStats(list) {
+    document.getElementById('ftTotalCount').textContent = list.length;
+    let totalItemsCost = 0;
+    let totalItemsMarg = 0;
+    let validMargs = 0;
+    
+    list.forEach(ft => {
+        totalItemsCost += (ft.custoTotal || 0);
+        let ct = ft.custoTotal || 0;
+        let pv = ft.precoSugerido || 0;
+        if(ct > 0 && pv > ct) {
+            let mg = ((pv - ct) / pv) * 100;
+            totalItemsMarg += mg;
+            validMargs++;
+        }
+    });
+    
+    const avgCost = list.length > 0 ? (totalItemsCost / list.length) : 0;
+    document.getElementById('ftAvgCost').textContent = avgCost.toFixed(2) + ' €';
+    
+    const avgMarg = validMargs > 0 ? (totalItemsMarg / validMargs) : 0;
+    document.getElementById('ftAvgMargin').textContent = avgMarg.toFixed(1) + '%';
+}
+
+function _ftRenderFTCards(list) {
+    const container = document.getElementById('ftCardsContainer');
+    if (!container) return;
+    
+    if (list.length === 0) {
+        container.innerHTML = '<div class="col-span-full border-2 border-dashed border-slate-200 text-slate-400 p-10 rounded-3xl text-center font-bold">Ainda não existem fichas técnicas.</div>';
+        return;
+    }
+    
+    let html = '';
+    let canViewCosts = true;
+    if (window.currentUser && window.currentUser.role === 'Operador') {
+        canViewCosts = window.currentUser._userPermissions && window.currentUser._userPermissions.ft_ver_custos;
+    }
+    
+    list.forEach(ft => {
+        const cat = ft.categoria || "Sem categoria";
+        const cost = canViewCosts ? (ft.custoTotal || 0).toFixed(2) : "---";
+        const pv = (ft.precoSugerido || 0).toFixed(2);
+        let lucro = canViewCosts ? ((ft.precoSugerido || 0) - (ft.custoTotal || 0)).toFixed(2) : "---";
+        let marginClass = ft.precoSugerido > ft.custoTotal ? "text-emerald-500 bg-emerald-50" : "text-rose-500 bg-rose-50";
+        if (!canViewCosts) marginClass = "text-slate-500 bg-slate-50";
+        
+        let logoHtml = ft.logo ? '<img src="' + ft.logo + '" class="w-10 h-10 object-contain rounded-lg border border-slate-100 p-1 bg-white">' : '<div class="w-10 h-10 rounded-lg border border-slate-100 bg-slate-50 flex items-center justify-center"><i data-lucide="image" class="w-4 h-4 text-slate-300"></i></div>';
+        
+        // Using Array pattern to avoid template literal issues in Apps Script if any
+        let card = [
+        '<div class="bg-white border text-left border-slate-100 p-6 rounded-[2rem] shadow-sm hover:shadow-md transition group relative overflow-hidden flex flex-col">',
+            '<div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-flowly-primary/5 to-transparent rounded-full blur-2xl group-hover:bg-flowly-primary/10 transition-colors pointer-events-none"></div>',
+            '<div class="flex items-start justify-between mb-4 relative z-10">',
+                '<div class="flex gap-3 items-center">',
+                    logoHtml,
+                    '<div>',
+                        '<span class="text-[9px] font-black uppercase text-slate-400 tracking-wider">' + cat + '</span>',
+                        '<h4 class="font-black text-flowly-midnight text-lg line-clamp-1 truncate" title="' + ft.nome.replace(/"/g, '&quot;') + '">' + ft.nome + '</h4>',
+                    '</div>',
+                '</div>',
+                '<div class="flex gap-1">',
+                    '<button type="button" onclick="editFT(\'' + ft.id + '\')" class="p-2 text-slate-400 hover:text-flowly-primary hover:bg-cyan-50 rounded-xl transition"><i data-lucide="edit-3" class="w-4 h-4"></i></button>',
+                    '<button type="button" onclick="openFTReport(\'' + ft.id + '\')" class="p-2 text-slate-400 hover:text-flowly-midnight hover:bg-slate-100 rounded-xl transition"><i data-lucide="file-text" class="w-4 h-4"></i></button>',
+                    '<button type="button" onclick="deleteFT(\'' + ft.id + '\')" class="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>',
+                '</div>',
+            '</div>',
+            '<div class="flex items-center gap-4 mt-auto border-t border-slate-50 pt-4 relative z-10 w-full">',
+                '<div class="flex-1">',
+                    '<p class="text-[10px] uppercase font-bold text-slate-400 mb-0.5 whitespace-nowrap">Custo Base</p>',
+                    '<p class="font-black text-rose-500">' + (canViewCosts ? cost + ' €' : cost) + '</p>',
+                '</div>',
+                '<div class="flex-1 border-l border-slate-100 pl-4">',
+                    '<p class="text-[10px] uppercase font-bold text-slate-400 mb-0.5 whitespace-nowrap">Lucro Potencial</p>',
+                    '<p class="font-black ' + marginClass + ' px-1.5 py-0.5 rounded inline-block text-[11px]">' + (canViewCosts ? '+' + lucro + ' €' : lucro) + '</p>',
+                '</div>',
+                '<div class="flex-1 border-l border-slate-100 pl-4 text-right">',
+                    '<p class="text-[10px] uppercase font-bold text-slate-400 mb-0.5 whitespace-nowrap">PVP Ref.</p>',
+                    '<p class="font-black text-flowly-primary">' + pv + ' €</p>',
+                '</div>',
+            '</div>',
+        '</div>'
+        ].join('');
+        html += card;
+    });
+    container.innerHTML = html;
+    if(window.lucide) lucide.createIcons();
+}
+
+function _ftFilterFichasTecnicas() {
+    const listToFilter = Array.isArray(ftListCache) ? ftListCache : [];
+    const term = (document.getElementById('searchTermFT').value || "").toLowerCase().trim();
+    if (!term) {
+        _ftRenderFTCards(listToFilter);
+        return;
+    }
+    const filtered = listToFilter.filter(f => {
+        const n = String(f.nome || "").toLowerCase();
+        const c = String(f.categoria || "").toLowerCase();
+        return n.includes(term) || c.includes(term);
+    });
+    _ftRenderFTCards(filtered);
+}
+
+// ==========================================
+// MODAL & INGREDIENTS LOGIC
+// ==========================================
+
+function _ftLoadArtigosForDatalist() {
+    google.script.run
+        .withSuccessHandler(res => {
+            if (res && res.success) {
+                let dl = document.getElementById('listaArtigos');
+                if (!dl) {
+                    dl = document.createElement('datalist');
+                    dl.id = 'listaArtigos';
+                    document.body.appendChild(dl);
+                }
+                dl.innerHTML = '';
+                res.data.forEach(art => {
+                    const opt = document.createElement('option');
+                    opt.value = art;
+                    dl.appendChild(opt);
+                });
+            }
+        })
+        .getUniqueArticlesForDatalist(_ctxEmail());
+}
+
+function _ftOpenFtModal() {
+    _ftClearFTModal();
+    _ftLoadArtigosForDatalist();
+    document.getElementById('ftModalTitle').textContent = "Nova Ficha Técnica";
+    _ftAddFTIngredientLine(); 
+    document.getElementById('modalFichaTecnica').classList.remove('hidden');
+}
+
+function _ftCloseFtModal() {
+    document.getElementById('modalFichaTecnica').classList.add('hidden');
+}
+
+function _ftClearFTModal() {
+    document.getElementById('ftIdToEdit').value = '';
+    document.getElementById('ftName').value = '';
+    document.getElementById('ftCategory').value = '';
+    document.getElementById('ftPrep').value = '';
+    document.getElementById('ftLogoUpload').value = '';
+    document.getElementById('ftLogoBase64').value = '';
+    document.getElementById('ftPreviewLogoContainer').classList.add('hidden');
+    document.getElementById('ftPreviewLogoImg').src = '';
+    
+    document.getElementById('ftIngredientsList').innerHTML = '';
+    
+    const sCost = document.getElementById('ftSummaryCost');
+    const sSugg = document.getElementById('ftSummarySuggested');
+    const sMargin = document.getElementById('ftSummaryMargin');
+    const sFP = document.getElementById('ftFinalPrice');
+    
+    if(sCost) sCost.textContent = "0.00 €";
+    if(sSugg) sSugg.textContent = "0.00 €";
+    if(sMargin) sMargin.textContent = "-- %";
+    if(sFP) sFP.value = "0.00";
+    
+    // reset global temp state
+    window._ftCurrentSimulatedCosts = 0;
+    window._ftCurrentSuggestedPv = 0;
+}
+
+function _ftAddFTIngredientLine(name, qty, unit, currentCost) {
+    console.log("[DEBUG] addFTIngredientLine args:", {name, qty, unit, currentCost});
+    name = (typeof name !== 'undefined' && name !== null) ? name : '';
+    qty = (typeof qty !== 'undefined' && qty !== null) ? qty : '';
+    unit = (typeof unit !== 'undefined' && unit !== null) ? unit : '';
+    currentCost = (typeof currentCost !== 'undefined' && currentCost !== null) ? currentCost : 0;
+
+    const container = document.getElementById('ftIngredientsList');
+    if (!container) {
+        console.warn("[DEBUG] addFTIngredientLine aborted: ftIngredientsList not in DOM.");
+        return; // Validation check
+    }
+
+    const id = "ing_line_" + Date.now() + Math.floor(Math.random() * 100);
+    
+    // Datalist link
+    let selectHtml = '<input type="text" list="listaArtigos" name="ingName" value="' + name.replace(/"/g, '&quot;') + '" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-flowly-primary/30" placeholder="Pesquisar...">';
+    
+    const html = [
+    '<div id="' + id + '" class="ft-ingredient-line grid grid-cols-12 gap-2 items-center">',
+        '<div class="col-span-6">',
+            selectHtml,
+        '</div>',
+        '<div class="col-span-3">',
+            '<input type="number" name="ingQty" value="' + qty + '" min="0.001" step="0.001" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-flowly-primary/30" placeholder="Qtd">',
+        '</div>',
+        '<div class="col-span-2">',
+            '<select name="ingUnit" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-flowly-primary/30">',
+                '<option value="Un" ' + (unit==='Un'?'selected':'') + '>Un</option>',
+                '<option value="Kg" ' + (unit==='Kg'?'selected':'') + '>Kg</option>',
+                '<option value="Gr" ' + (unit==='Gr'?'selected':'') + '>Gr</option>',
+                '<option value="L" ' + (unit==='L'?'selected':'') + '>Litro</option>',
+                '<option value="ml" ' + (unit==='ml'?'selected':'') + '>ml</option>',
+            '</select>',
+        '</div>',
+        '<div class="col-span-1 flex justify-end">',
+            '<button type="button" onclick="document.getElementById(\'' + id + '\').remove()" class="p-2 text-slate-400 hover:text-rose-500 transition rounded-lg hover:bg-rose-50"><i data-lucide="trash-2" class="w-4 h-4"></i></button>',
+        '</div>',
+        '<input type="hidden" name="ingSavedCost" value="' + currentCost + '">',
+    '</div>'
+    ].join('');
+    
+    container.insertAdjacentHTML('beforeend', html);
+    if(window.lucide) lucide.createIcons();
+}
+
+function _ftPreviewFTLogo(event) {
+    const file = event.target.files[0];
+    if (!file) {
+        document.getElementById('ftLogoBase64').value = "";
+        document.getElementById('ftPreviewLogoContainer').classList.add('hidden');
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('ftLogoBase64').value = e.target.result;
+        document.getElementById('ftPreviewLogoContainer').classList.remove('hidden');
+        document.getElementById('ftPreviewLogoImg').src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function _ftGatherFTItems() {
+    const lines = document.querySelectorAll('#ftIngredientsList .ft-ingredient-line');
+    const items = [];
+    lines.forEach(line => {
+        const name = String(line.querySelector('input[name="ingName"]').value || "").trim();
+        const qty = parseFloat(line.querySelector('input[name="ingQty"]').value) || 0;
+        const unit = line.querySelector('select[name="ingUnit"]').value;
+        const savedCost = parseFloat(line.querySelector('input[name="ingSavedCost"]').value) || 0;
+        if(name && qty > 0) {
+            items.push({ nome: name, quantidade: qty, unidade: unit, custo_unitario: savedCost });
+        }
+    });
+    return items;
+}
+
+function _ftSimulateFTCost() {
+    const btn = document.getElementById('btnSimulateFT');
+    if (!btn) return;
+    const originalText = btn.innerHTML;
+    const items = _ftGatherFTItems();
+    if(items.length === 0) { notify("Adicione ingredientes primeiro.", "warning"); return; }
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin w-4 h-4"></i> A simular...';
+    btn.disabled = true;
+    
+    google.script.run
+      .withSuccessHandler(res => {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          window._ftCurrentSimulatedCosts = 0;
+          window._ftCurrentSuggestedPv = 0;
+          
+          if(res.success) {
+              window._ftCurrentSimulatedCosts = res.custoTotal;
+              window._ftCurrentSuggestedPv = res.precoSugerido;
+              
+              const elCost = document.getElementById('ftSummaryCost');
+              const elSugg = document.getElementById('ftSummarySuggested');
+              const elMargin = document.getElementById('ftSummaryMargin');
+              
+              if(elCost) elCost.textContent = res.custoTotal.toFixed(2) + " €";
+              if(elSugg) elSugg.textContent = res.precoSugerido.toFixed(2) + " €";
+              
+              if(res.precoSugerido > 0 && elMargin) {
+                  const mrg = (((res.precoSugerido - res.custoTotal)/res.precoSugerido)*100).toFixed(1);
+                  elMargin.textContent = mrg + " %";
+              }
+              
+              const evaluated = res.itensEvaluated || [];
+              const lines = document.querySelectorAll('#ftIngredientsList .ft-ingredient-line');
+              lines.forEach(line => {
+                  const nameInp = String(line.querySelector('input[name="ingName"]').value || "").trim();
+                  const found = evaluated.find(e => e.nome === nameInp);
+                  if(found) {
+                      line.querySelector('input[name="ingSavedCost"]').value = found.custo_unitario;
+                  }
+              });
+              
+              notify("Simulação concluída com os últimos preços de entrada.", "success");
+          } else {
+              notify("Erro na simulação: " + res.error, "error");
+          }
+      })
+      .withFailureHandler(err => {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          notify("Erro de rede: " + err, "error");
+      })
+      .calculateFTCost(items, _ctxEmail());
+}
+
+function _ftSaveFT() {
+    const btn = document.getElementById('btnSaveFT');
+    const name = (document.getElementById('ftName').value || "").trim();
+    if(!name) { notify("O Nome do Artigo é obrigatório.", "error"); return; }
+    
+    // Check if we simulated
+    let costT = window._ftCurrentSimulatedCosts || 0;
+    let suggPv = window._ftCurrentSuggestedPv || 0;
+    
+    const items = _ftGatherFTItems();
+    if(items.length === 0) { notify("Adicione pelo menos 1 ingrediente.", "error"); return; }
+    
+    // Auto-calcula custos "saved" do formulário se não houve simulação
+    if(costT === 0) {
+       items.forEach(i => costT += ((i.custo_unitario||0) * i.quantidade));
+       // Pensei num PVP genérico de +50% se não simulou
+       if(costT > 0 && suggPv === 0) suggPv = costT * 1.5;
+    }
+    
+    const fpEl = document.getElementById('ftFinalPrice');
+    let precoFinal = suggPv;
+    if(fpEl && fpEl.value !== "") {
+         precoFinal = parseFloat(fpEl.value.toString().replace(',','.')) || suggPv;
+    }
+    
+    const payload = {
+        id: document.getElementById('ftIdToEdit').value,
+        nome: name,
+        categoria: document.getElementById('ftCategory').value,
+        preparacao: document.getElementById('ftPrep').value,
+        logoBase64: document.getElementById('ftLogoBase64').value,
+        itens: items,
+        custoTotal: costT,
+        precoSugerido: suggPv,
+        precoFinal: precoFinal,
+        impersonateEmail: _ctxEmail()
+    };
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A guardar...';
+    
+    google.script.run
+       .withSuccessHandler(res => {
+           btn.disabled = false;
+           btn.innerHTML = 'Guardar Ficha Técnica';
+           if(res.success) {
+               notify("Ficha Técnica guardada com sucesso!", "success");
+               _ftCloseFtModal();
+               _ftRefreshFTList();
+           } else {
+               notify(res.error, "error");
+           }
+       })
+       .withFailureHandler(err => {
+           btn.disabled = false;
+           btn.innerHTML = 'Guardar Ficha Técnica';
+           notify("Erro de rede.", "error");
+       })
+       .saveFichaTecnica(payload);
+}
+
+function _ftEditFT(id) {
+    const container = document.getElementById('ftCardsContainer');
+    notify("A carregar detalhes...", "info");
+    google.script.run
+       .withSuccessHandler(res => {
+           if(res.success) {
+               _ftClearFTModal();
+               const data = res.data;
+               document.getElementById('ftIdToEdit').value = data.id;
+               document.getElementById('ftName').value = data.nome;
+               document.getElementById('ftCategory').value = data.categoria || "";
+               document.getElementById('ftPrep').value = data.preparacao || "";
+               
+               if(data.logo && data.logo.startsWith("data:image")) {
+                   document.getElementById('ftLogoBase64').value = data.logo;
+                   document.getElementById('ftPreviewLogoContainer').classList.remove('hidden');
+                   document.getElementById('ftPreviewLogoImg').src = data.logo;
+               }
+               
+               const sCost = document.getElementById('ftSummaryCost');
+               const sSugg = document.getElementById('ftSummarySuggested');
+               const sMargin = document.getElementById('ftSummaryMargin');
+               const sFP = document.getElementById('ftFinalPrice');
+               
+               if(sCost) sCost.textContent = (data.custoTotal||0).toFixed(2) + " €";
+               if(sSugg) sSugg.textContent = (data.precoSugerido||0).toFixed(2) + " €";
+               if(sFP) sFP.value = (data.precoFinal !== undefined ? data.precoFinal : data.precoSugerido).toFixed(2);
+               
+               window._ftCurrentSimulatedCosts = data.custoTotal||0;
+               window._ftCurrentSuggestedPv = data.precoSugerido||0;
+               
+               if(data.precoSugerido>0 && sMargin) {
+                   const mrg = (((data.precoSugerido - data.custoTotal)/data.precoSugerido)*100).toFixed(1);
+                   sMargin.textContent = mrg + " %";
+               }
+               
+               data.itens.forEach(it => {
+                   _ftAddFTIngredientLine(it.nome, it.quantidade, it.unidade, it.custo_unitario);
+               });
+               
+               document.getElementById('ftModalTitle').textContent = "Editar Ficha Técnica";
+               document.getElementById('modalFichaTecnica').classList.remove('hidden');
+           } else {
+               notify("Erro: " + res.error, "error");
+           }
+       })
+       .withFailureHandler(err => notify("Erro: "+err, "error"))
+       .getFichaTecnica(id, _ctxEmail());
+}
+
+function _ftDeleteFT(id) {
+    showConfirm("Remover Ficha Técnica e perder associação a vendas (não remove do histórico de caixa)?", () => {
+        google.script.run
+          .withSuccessHandler(res => {
+              if (res.success) {
+                  notify("Apagada.", "success");
+                  _ftRefreshFTList();
+              } else {
+                  notify("Erro: " + res.error, "error");
+              }
+          })
+          .deleteFichaTecnica(id, _ctxEmail());
+    });
+}
+
+// ==========================================
+// REPORT / PDF PREVIEW
+// ==========================================
+function _ftOpenFTReport(id, includeCosts = true) {
+    notify("A gerar documento...", "info");
+    google.script.run
+       .withSuccessHandler(res => {
+           if(res.success) {
+               _ftRenderFTDocument(res.data, includeCosts);
+           } else notify("Erro: "+res.error, "error");
+       })
+       .withFailureHandler(err => notify("Erro: "+err, "error"))
+       .getFichaTecnica(id, _ctxEmail());
+}
+
+function _ftRenderFTDocument(data, includeCosts = true) {
+    let canViewCosts = true;
+    if (window.currentUser && window.currentUser.role === 'Operador') {
+        canViewCosts = window.currentUser._userPermissions && window.currentUser._userPermissions.ft_ver_custos;
+    }
+    if (!canViewCosts) {
+        includeCosts = false;
+    }
+
+    const container = document.getElementById('ftPdfContent');
+    const flowlyLogo = "https://i.postimg.cc/mrcDM13S/flowly-logo.jpg";
+    const clientLogo = (data.logo && data.logo.startsWith("data:image")) ? data.logo : null;
+    
+    let html = [
+    '<div class="space-y-8 font-sans text-slate-800">',
+        '<div class="flex justify-between items-start border-b-2 border-slate-800 pb-6">',
+            '<div class="flex flex-col">',
+                '<h1 class="text-3xl font-black uppercase tracking-tight text-slate-900">' + String(data.nome || "").replace(/</g, "&lt;").replace(/>/g, "&gt;") + '</h1>',
+                '<p class="text-sm font-bold text-slate-500 tracking-wider">REF. DOCUMENTO TÉCNICO: <span class="text-slate-900">' + (data.id ? data.id.split('-')[1] : "N/A") + '</span></p>',
+                '<p class="text-xs text-slate-400 mt-1">Categoria: ' + String(data.categoria || 'N/A').replace(/</g, "&lt;") + '</p>',
+            '</div>',
+            '<div class="flex gap-4 items-center">',
+                clientLogo ? '<img src="' + clientLogo + '" class="h-14 w-auto object-contain max-w-[120px]">' : '',
+                '<div class="w-px h-12 bg-slate-200"></div>',
+                '<img src="' + flowlyLogo + '" class="h-10 w-auto rounded opacity-80" alt="Flowly">',
+            '</div>',
+        '</div>',
+        '<div class="grid grid-cols-3 gap-10">',
+            '<div class="col-span-1 space-y-6' + (!includeCosts ? ' hidden' : '') + '">',
+                '<div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">',
+                    '<h4 class="text-xs font-black uppercase text-slate-400 tracking-tight mb-3">Resumo Financeiro Ref.</h4>',
+                    '<div class="space-y-3">',
+                        '<div class="flex justify-between">',
+                            '<span class="text-xs font-bold text-slate-600">Custo Ref.</span>',
+                            '<span class="text-xs font-black text-rose-600">' + (data.custoTotal||0).toFixed(2) + ' €</span>',
+                        '</div>',
+                        '<div class="flex justify-between">',
+                            '<span class="text-xs font-bold text-slate-600">Preço Venda Ref.</span>',
+                            '<span class="text-sm font-black text-slate-900">' + (data.precoSugerido||0).toFixed(2) + ' €</span>',
+                        '</div>',
+                        '<div class="pt-3 border-t border-slate-200 mt-3 flex justify-between">',
+                            '<span class="text-[10px] font-black uppercase text-slate-400">Margem Bruta Estimada</span>',
+                            '<span class="text-xs font-black text-emerald-600">' + (data.precoSugerido > 0 ? (((data.precoSugerido - data.custoTotal)/data.precoSugerido)*100).toFixed(1) : 0) + ' %</span>',
+                        '</div>',
+                    '</div>',
+                '</div>',
+                '<div class="text-[10px] text-slate-400 leading-relaxed text-justify mt-4">',
+                    'Este documento é gerado automaticamente pelo Flowly 360 AI. Os custos descritos são referência à data de simulação e podem divergir no momento de compra.',
+                '</div>',
+            '</div>',
+            '<div class="col-span-2 space-y-8">',
+                '<div>',
+                     '<h3 class="text-sm font-black uppercase tracking-wider text-slate-800 mb-4 bg-slate-100 p-2 rounded px-3 border-l-4 border-slate-800">I. Ingredientes e Proporções</h3>',
+                     '<table class="w-full text-left text-sm">',
+                         '<thead>',
+                             '<tr class="border-b border-slate-200 text-slate-400 text-[10px] uppercase font-bold tracking-widest">',
+                                 '<th class="pb-2">Artigo</th>',
+                                 '<th class="pb-2">Qtd</th>',
+                                 (includeCosts ? '<th class="pb-2 text-right">Custo Unitário Ref.</th>' : ''),
+                             '</tr>',
+                         '</thead>',
+                         '<tbody class="divide-y divide-slate-100">',
+                             data.itens.map(it => [
+                             '<tr class="text-xs text-slate-700 font-semibold">',
+                                 '<td class="py-3">' + String(it.nome||"").replace(/</g, "&lt;") + '</td>',
+                                 '<td class="py-3">' + it.quantidade + ' <span class="text-[10px] text-slate-400 ml-1">' + (it.unidade || "") + '</span></td>',
+                                 (includeCosts ? '<td class="py-3 text-right text-slate-500">' + (it.custo_unitario||0).toFixed(3) + ' €</td>' : ''),
+                             '</tr>'
+                             ].join('')).join(''),
+                         '</tbody>',
+                     '</table>',
+                '</div>',
+                data.preparacao ? [
+                '<div>',
+                     '<h3 class="text-sm font-black uppercase tracking-wider text-slate-800 mb-4 bg-slate-100 p-2 rounded px-3 border-l-4 border-slate-800">II. Modo de Preparação</h3>',
+                     '<div class="text-xs text-slate-700 leading-loose whitespace-pre-wrap font-medium p-4 bg-white border border-slate-200 rounded-xl">',
+                        String(data.preparacao).replace(/</g, "&lt;"),
+                     '</div>',
+                '</div>'
+                ].join('') : '',
+            '</div>',
+        '</div>',
+        '<div class="pt-8 border-t border-slate-200 flex justify-between items-center opacity-50 text-[10px] font-bold">',
+             '<span>Gerado em: ' + new Date().toLocaleDateString('pt-PT') + ' ' + new Date().toLocaleTimeString('pt-PT') + '</span>',
+             '<span class="flex items-center gap-1"><i data-lucide="shield-check" class="w-3 h-3"></i> Documento Privado</span>',
+             '<span>Powered by Flowly 360</span>',
+        '</div>',
+    '</div>'
+    ].join('');
+    
+    container.innerHTML = html;
+    if(window.lucide) lucide.createIcons();
+    document.getElementById('modalFTPdfExport').classList.remove('hidden');
+}
+
+function _ftPrintFT() {
+    // Escondemos o header do modal para não sair na impressão e imprimimos o conteúdo do PDF
+    const modal = document.getElementById('modalFTPdfExport');
+    const header = modal.querySelector('.fixed.top-0');
+    
+    // Injetamos estilo temporário na página para imprimir apenas o conteudo do ftPdfContent
+    const style = document.createElement('style');
+    style.id = "printFTStyles";
+    style.innerHTML = [
+        "@media print {",
+            "body * { visibility: hidden; }",
+            "#ftPdfContent, #ftPdfContent * { visibility: visible; }",
+            "#ftPdfContent { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; box-shadow: none; border: none; }",
+            "@page { margin: 1cm; }",
+        "}"
+    ].join('');
+    document.head.appendChild(style);
+    
+    header.classList.add('hidden');
+    
+    window.print();
+    
+    header.classList.remove('hidden');
+    document.head.removeChild(style);
+}
+
+window.ftModuleReady = true;
+console.log("[DEBUG] Módulo Fichas Técnicas carregado com sucesso!");
+
+})();
