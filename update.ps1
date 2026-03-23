@@ -18,9 +18,17 @@ if (Test-Path "Template.html") {
     $content | Out-File -FilePath "index.html" -Encoding utf8 -Force
 }
 
-# 3. Enviar para o GitHub
-Write-Host "--- Enviando para o GitHub (flowly.pt) ---" -ForegroundColor Yellow
+# 3. Enviar para o GitHub (Com Rebase Automático)
+Write-Host "--- A sincronizar com GitHub (flowly.pt) ---" -ForegroundColor Yellow
+git config core.autocrlf true
 git add .
-git commit -m "Fix: Nome do index e fontes CDN"
+git commit -m "Sincronização automática: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+
+# Tenta puxar as alterações antes de enviar, para evitar o erro 'rejected'
+Write-Host "--- A verificar alterações remotas ---" -ForegroundColor Cyan
+git pull --rebase origin main
+
+# Envia para o GitHub
 git push origin main
-Write-Host "🚀 TUDO PRONTO! Faz Refresh no flowly.pt em 1 minuto." -ForegroundColor Green
+
+Write-Host "🚀 TUDO PRONTO! App e Site sincronizados." -ForegroundColor Green
