@@ -1,0 +1,155 @@
+<!-- JS_Mock.html - Mock do google.script.run para GitHub Pages -->
+<script>
+(function() {
+    'use strict';
+    
+    // Verificar se estamos fora do ambiente Google Apps Script
+    if (!window.location.hostname.includes('script.google.com')) {
+        
+        // Criar mock completo do google.script.run
+        window.google = window.google || {};
+        window.google.script = window.google.script || {};
+        
+        // Mock do run com todos os métodos necessários
+        window.google.script.run = {
+            // Método principal para chamadas de servidor
+            withSuccessHandler: function(callback) {
+                this._successCallback = callback;
+                return this;
+            },
+            
+            withFailureHandler: function(callback) {
+                this._failureCallback = callback;
+                return this;
+            },
+            
+            withUserObject: function(obj) {
+                this._userObject = obj;
+                return this;
+            },
+            
+            // Métodos mockados baseados nos usos do projeto
+            getDashboardData: function() {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        this._successCallback({
+                            modules: { logistica: true, ia: true, rh: true, cc: true, access: true, admin: true, dashboard: true },
+                            user: { email: 'demo@flowly.pt', name: 'Demo User' },
+                            stats: { total: 0, receitas: 0, despesas: 0 }
+                        });
+                    }
+                }, 100);
+                return this;
+            },
+            
+            getUserSession: function() {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        this._successCallback({
+                            email: 'demo@flowly.pt',
+                            name: 'Demo User',
+                            authenticated: true
+                        });
+                    }
+                }, 100);
+                return this;
+            },
+            
+            logout: function() {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        this._successCallback(true);
+                        window.location.reload();
+                    }
+                }, 100);
+                return this;
+            },
+            
+            // Mock genérico para qualquer outra chamada
+            _mockGenericCall: function(functionName) {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        // Retornar dados mock com base no nome da função
+                        let mockData = {};
+                        
+                        if (functionName.includes('get')) {
+                            mockData = { success: true, data: [], total: 0 };
+                        } else if (functionName.includes('save') || functionName.includes('update') || functionName.includes('delete')) {
+                            mockData = { success: true, message: 'Operação simulada com sucesso' };
+                        } else {
+                            mockData = { success: true, message: 'Mock response for ' + functionName };
+                        }
+                        
+                        this._successCallback(mockData);
+                    }
+                }, 150);
+                return this;
+            }
+        };
+        
+        // Adicionar mocks dinâmicos para todos os métodos possíveis
+        const knownMethods = [
+            'getRegistos', 'saveRegisto', 'deleteRegisto', 'updateRegisto',
+            'getStaff', 'saveStaff', 'deleteStaff', 'updateStaff',
+            'getFrota', 'saveFrota', 'updateFrota',
+            'getAIAnalysis', 'saveAIAnalysis',
+            'getSaaSConfig', 'updateSaaSConfig',
+            'getLogisticaData', 'saveLogisticaData',
+            'getCRMData', 'saveCRMData',
+            'getFichasTecnicas', 'saveFichasTecnicas'
+        ];
+        
+        knownMethods.forEach(method => {
+            window.google.script.run[method] = function() {
+                return this._mockGenericCall(method);
+            };
+        });
+        
+        // Proxy para capturar chamadas de métodos não definidos
+        const handler = {
+            get: function(target, prop) {
+                if (prop in target) {
+                    return target[prop];
+                }
+                
+                // Retornar função mock para qualquer método não definido
+                return function() {
+                    console.log(`Mock call: google.script.run.${prop}()`);
+                    return target._mockGenericCall(prop.toString());
+                };
+            }
+        };
+        
+        window.google.script.run = new Proxy(window.google.script.run, handler);
+        
+        // Adicionar aviso no console
+        console.warn('🔧 Flowly 360: Modo GitHub Pages detectado. Usando mock do google.script.run');
+        
+        // Adicionar banner visual na página
+        document.addEventListener('DOMContentLoaded', function() {
+            const banner = document.createElement('div');
+            banner.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: linear-gradient(90deg, #06B6D4, #10B981);
+                color: white;
+                text-align: center;
+                padding: 8px;
+                font-size: 12px;
+                font-weight: bold;
+                z-index: 9999;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            `;
+            banner.innerHTML = '🚀 Flowly 360 - Modo Demonstração (GitHub Pages) | Funcionalidades limitadas';
+            document.body.insertBefore(banner, document.body.firstChild);
+            
+            // Ajustar o padding do body para não ficar escondido atrás do banner
+            if (document.body.style.paddingTop === '' || document.body.style.paddingTop === '0px') {
+                document.body.style.paddingTop = '40px';
+            }
+        });
+    }
+})();
+</script>

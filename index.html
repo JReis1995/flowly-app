@@ -3,6 +3,162 @@
 <html lang="pt">
 
 <head>
+<!-- JS_Mock.html - Mock do google.script.run para GitHub Pages -->
+<script>
+(function() {
+    'use strict';
+    
+    // Verificar se estamos fora do ambiente Google Apps Script
+    if (!window.location.hostname.includes('script.google.com')) {
+        
+        // Criar mock completo do google.script.run
+        window.google = window.google || {};
+        window.google.script = window.google.script || {};
+        
+        // Mock do run com todos os mÃ©todos necessÃ¡rios
+        window.google.script.run = {
+            // MÃ©todo principal para chamadas de servidor
+            withSuccessHandler: function(callback) {
+                this._successCallback = callback;
+                return this;
+            },
+            
+            withFailureHandler: function(callback) {
+                this._failureCallback = callback;
+                return this;
+            },
+            
+            withUserObject: function(obj) {
+                this._userObject = obj;
+                return this;
+            },
+            
+            // MÃ©todos mockados baseados nos usos do projeto
+            getDashboardData: function() {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        this._successCallback({
+                            modules: { logistica: true, ia: true, rh: true, cc: true, access: true, admin: true, dashboard: true },
+                            user: { email: 'demo@flowly.pt', name: 'Demo User' },
+                            stats: { total: 0, receitas: 0, despesas: 0 }
+                        });
+                    }
+                }, 100);
+                return this;
+            },
+            
+            getUserSession: function() {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        this._successCallback({
+                            email: 'demo@flowly.pt',
+                            name: 'Demo User',
+                            authenticated: true
+                        });
+                    }
+                }, 100);
+                return this;
+            },
+            
+            logout: function() {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        this._successCallback(true);
+                        window.location.reload();
+                    }
+                }, 100);
+                return this;
+            },
+            
+            // Mock genÃ©rico para qualquer outra chamada
+            _mockGenericCall: function(functionName) {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        // Retornar dados mock com base no nome da funÃ§Ã£o
+                        let mockData = {};
+                        
+                        if (functionName.includes('get')) {
+                            mockData = { success: true, data: [], total: 0 };
+                        } else if (functionName.includes('save') || functionName.includes('update') || functionName.includes('delete')) {
+                            mockData = { success: true, message: 'OperaÃ§Ã£o simulada com sucesso' };
+                        } else {
+                            mockData = { success: true, message: 'Mock response for ' + functionName };
+                        }
+                        
+                        this._successCallback(mockData);
+                    }
+                }, 150);
+                return this;
+            }
+        };
+        
+        // Adicionar mocks dinÃ¢micos para todos os mÃ©todos possÃ­veis
+        const knownMethods = [
+            'getRegistos', 'saveRegisto', 'deleteRegisto', 'updateRegisto',
+            'getStaff', 'saveStaff', 'deleteStaff', 'updateStaff',
+            'getFrota', 'saveFrota', 'updateFrota',
+            'getAIAnalysis', 'saveAIAnalysis',
+            'getSaaSConfig', 'updateSaaSConfig',
+            'getLogisticaData', 'saveLogisticaData',
+            'getCRMData', 'saveCRMData',
+            'getFichasTecnicas', 'saveFichasTecnicas'
+        ];
+        
+        knownMethods.forEach(method => {
+            window.google.script.run[method] = function() {
+                return this._mockGenericCall(method);
+            };
+        });
+        
+        // Proxy para capturar chamadas de mÃ©todos nÃ£o definidos
+        const handler = {
+            get: function(target, prop) {
+                if (prop in target) {
+                    return target[prop];
+                }
+                
+                // Retornar funÃ§Ã£o mock para qualquer mÃ©todo nÃ£o definido
+                return function() {
+                    console.log(`Mock call: google.script.run.${prop}()`);
+                    return target._mockGenericCall(prop.toString());
+                };
+            }
+        };
+        
+        window.google.script.run = new Proxy(window.google.script.run, handler);
+        
+        // Adicionar aviso no console
+        console.warn('ðŸ”§ Flowly 360: Modo GitHub Pages detectado. Usando mock do google.script.run');
+        
+        // Adicionar banner visual na pÃ¡gina
+        document.addEventListener('DOMContentLoaded', function() {
+            const banner = document.createElement('div');
+            banner.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: linear-gradient(90deg, #06B6D4, #10B981);
+                color: white;
+                text-align: center;
+                padding: 8px;
+                font-size: 12px;
+                font-weight: bold;
+                z-index: 9999;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            `;
+            banner.innerHTML = 'ðŸš€ Flowly 360 - Modo DemonstraÃ§Ã£o (GitHub Pages) | Funcionalidades limitadas';
+            document.body.insertBefore(banner, document.body.firstChild);
+            
+            // Ajustar o padding do body para nÃ£o ficar escondido atrÃ¡s do banner
+            if (document.body.style.paddingTop === '' || document.body.style.paddingTop === '0px') {
+                document.body.style.paddingTop = '40px';
+            }
+        });
+    }
+})();
+</script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Permissions-Policy" content="interest-cohort=(), microphone=(), camera=(), magnetometer=(), gyroscope=(), accelerometer=(), usb=()">
@@ -17,6 +173,20 @@
 
     <!-- CRÃTICO: ConfiguraÃ§Ã£o do Tailwind que estava a faltar e partia o layout -->
     <script type="text/javascript">
+        // Normalizar domÃ­nio para evitar Frame Mismatch entre www e non-www
+        (function() {
+            var hostname = window.location.hostname;
+            var pathname = window.location.pathname;
+            
+            // Redirecionar www para non-www ou vice-versa para manter consistÃªncia
+            if (hostname.startsWith('www.') && window.location.protocol === 'https:') {
+                var newHost = hostname.replace('www.', '');
+                if (hostname !== newHost) {
+                    window.location.replace(window.location.protocol + '//' + newHost + pathname + window.location.search);
+                }
+            }
+        })();
+        
         tailwind.config = {
             theme: {
                 extend: {
@@ -626,13 +796,13 @@
 </style>
 </head>
 
-<body class="flex flex-col min-h-screen text-flowly-midnight font-sans" data-setup-token="<?= setupToken ?>"
-    data-action-set-password="<?= (typeof actionSetPassword !== 'undefined' && actionSetPassword) ? 'true' : 'false' ?>"
-    data-set-password-token="<?= (typeof setPasswordToken !== 'undefined' && setPasswordToken) ? setPasswordToken : '' ?>">
+<body class="flex flex-col min-h-screen text-flowly-midnight font-sans" data-setup-token="''"
+    data-action-set-password="''"
+    data-set-password-token="''">
 
     <script>
-        window._paymentSuccess = <?= (typeof paymentSuccess !== 'undefined' && paymentSuccess) ? 'true' : 'false' ?>;
-        window._creditsAdded = <?= (typeof creditsAdded !== 'undefined' && creditsAdded != null) ? parseInt(creditsAdded, 10) : 0 ?>;
+        window._paymentSuccess = '';
+        window._creditsAdded = '';
     </script>
 
     <!-- TOASTS & OVERLAYS GLOBAIS -->
@@ -4937,6 +5107,29 @@
 
     <!-- ProteÃ§Ã£o contra falhas no carregamento de Fichas TÃ©cnicas -->
     <script>
+        // Garantir que Tailwind e Lucide estÃ£o carregados antes da lÃ³gica de permissÃµes
+        window.waitForLibraries = function(callback) {
+            var checkLibraries = function() {
+                var tailwindReady = typeof window.tailwind !== 'undefined' || document.querySelector('script[src*="tailwind"]');
+                var lucideReady = typeof window.lucide !== 'undefined' || document.querySelector('script[src*="lucide"]');
+                
+                if (tailwindReady && lucideReady) {
+                    // Inicializar Lucide se disponÃ­vel
+                    if (typeof window.lucide !== 'undefined') {
+                        try {
+                            window.lucide.createIcons();
+                        } catch (e) {
+                            console.warn('Lucide initialization failed:', e);
+                        }
+                    }
+                    callback();
+                } else {
+                    setTimeout(checkLibraries, 50);
+                }
+            };
+            checkLibraries();
+        };
+        
         window.reportModuleError = window.reportModuleError || function(moduleName, error) {
             var msg = "Erro tÃ©cnico no mÃ³dulo [" + moduleName + "]: " + (error ? (error.message || error) : "Desconhecido");
             console.error(msg, error);
@@ -13744,6 +13937,164 @@ function _ftPrintFT() {
 
 window.ftModuleReady = true;
 console.log("[DEBUG] MÃ³dulo Fichas TÃ©cnicas carregado com sucesso!");
+</script>
+
+    
+    <!-- Mock para GitHub Pages (deve ser carregado por Ãºltimo) -->
+    <!-- JS_Mock.html - Mock do google.script.run para GitHub Pages -->
+<script>
+(function() {
+    'use strict';
+    
+    // Verificar se estamos fora do ambiente Google Apps Script
+    if (!window.location.hostname.includes('script.google.com')) {
+        
+        // Criar mock completo do google.script.run
+        window.google = window.google || {};
+        window.google.script = window.google.script || {};
+        
+        // Mock do run com todos os mÃ©todos necessÃ¡rios
+        window.google.script.run = {
+            // MÃ©todo principal para chamadas de servidor
+            withSuccessHandler: function(callback) {
+                this._successCallback = callback;
+                return this;
+            },
+            
+            withFailureHandler: function(callback) {
+                this._failureCallback = callback;
+                return this;
+            },
+            
+            withUserObject: function(obj) {
+                this._userObject = obj;
+                return this;
+            },
+            
+            // MÃ©todos mockados baseados nos usos do projeto
+            getDashboardData: function() {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        this._successCallback({
+                            modules: { logistica: true, ia: true, rh: true, cc: true, access: true, admin: true, dashboard: true },
+                            user: { email: 'demo@flowly.pt', name: 'Demo User' },
+                            stats: { total: 0, receitas: 0, despesas: 0 }
+                        });
+                    }
+                }, 100);
+                return this;
+            },
+            
+            getUserSession: function() {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        this._successCallback({
+                            email: 'demo@flowly.pt',
+                            name: 'Demo User',
+                            authenticated: true
+                        });
+                    }
+                }, 100);
+                return this;
+            },
+            
+            logout: function() {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        this._successCallback(true);
+                        window.location.reload();
+                    }
+                }, 100);
+                return this;
+            },
+            
+            // Mock genÃ©rico para qualquer outra chamada
+            _mockGenericCall: function(functionName) {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        // Retornar dados mock com base no nome da funÃ§Ã£o
+                        let mockData = {};
+                        
+                        if (functionName.includes('get')) {
+                            mockData = { success: true, data: [], total: 0 };
+                        } else if (functionName.includes('save') || functionName.includes('update') || functionName.includes('delete')) {
+                            mockData = { success: true, message: 'OperaÃ§Ã£o simulada com sucesso' };
+                        } else {
+                            mockData = { success: true, message: 'Mock response for ' + functionName };
+                        }
+                        
+                        this._successCallback(mockData);
+                    }
+                }, 150);
+                return this;
+            }
+        };
+        
+        // Adicionar mocks dinÃ¢micos para todos os mÃ©todos possÃ­veis
+        const knownMethods = [
+            'getRegistos', 'saveRegisto', 'deleteRegisto', 'updateRegisto',
+            'getStaff', 'saveStaff', 'deleteStaff', 'updateStaff',
+            'getFrota', 'saveFrota', 'updateFrota',
+            'getAIAnalysis', 'saveAIAnalysis',
+            'getSaaSConfig', 'updateSaaSConfig',
+            'getLogisticaData', 'saveLogisticaData',
+            'getCRMData', 'saveCRMData',
+            'getFichasTecnicas', 'saveFichasTecnicas'
+        ];
+        
+        knownMethods.forEach(method => {
+            window.google.script.run[method] = function() {
+                return this._mockGenericCall(method);
+            };
+        });
+        
+        // Proxy para capturar chamadas de mÃ©todos nÃ£o definidos
+        const handler = {
+            get: function(target, prop) {
+                if (prop in target) {
+                    return target[prop];
+                }
+                
+                // Retornar funÃ§Ã£o mock para qualquer mÃ©todo nÃ£o definido
+                return function() {
+                    console.log(`Mock call: google.script.run.${prop}()`);
+                    return target._mockGenericCall(prop.toString());
+                };
+            }
+        };
+        
+        window.google.script.run = new Proxy(window.google.script.run, handler);
+        
+        // Adicionar aviso no console
+        console.warn('ðŸ”§ Flowly 360: Modo GitHub Pages detectado. Usando mock do google.script.run');
+        
+        // Adicionar banner visual na pÃ¡gina
+        document.addEventListener('DOMContentLoaded', function() {
+            const banner = document.createElement('div');
+            banner.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: linear-gradient(90deg, #06B6D4, #10B981);
+                color: white;
+                text-align: center;
+                padding: 8px;
+                font-size: 12px;
+                font-weight: bold;
+                z-index: 9999;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            `;
+            banner.innerHTML = 'ðŸš€ Flowly 360 - Modo DemonstraÃ§Ã£o (GitHub Pages) | Funcionalidades limitadas';
+            document.body.insertBefore(banner, document.body.firstChild);
+            
+            // Ajustar o padding do body para nÃ£o ficar escondido atrÃ¡s do banner
+            if (document.body.style.paddingTop === '' || document.body.style.paddingTop === '0px') {
+                document.body.style.paddingTop = '40px';
+            }
+        });
+    }
+})();
 </script>
 
 

@@ -17,6 +17,20 @@
 
     <!-- CRÍTICO: Configuração do Tailwind que estava a faltar e partia o layout -->
     <script type="text/javascript">
+        // Normalizar domínio para evitar Frame Mismatch entre www e non-www
+        (function() {
+            var hostname = window.location.hostname;
+            var pathname = window.location.pathname;
+            
+            // Redirecionar www para non-www ou vice-versa para manter consistência
+            if (hostname.startsWith('www.') && window.location.protocol === 'https:') {
+                var newHost = hostname.replace('www.', '');
+                if (hostname !== newHost) {
+                    window.location.replace(window.location.protocol + '//' + newHost + pathname + window.location.search);
+                }
+            }
+        })();
+        
         tailwind.config = {
             theme: {
                 extend: {
@@ -76,6 +90,29 @@
 
     <!-- Proteção contra falhas no carregamento de Fichas Técnicas -->
     <script>
+        // Garantir que Tailwind e Lucide estão carregados antes da lógica de permissões
+        window.waitForLibraries = function(callback) {
+            var checkLibraries = function() {
+                var tailwindReady = typeof window.tailwind !== 'undefined' || document.querySelector('script[src*="tailwind"]');
+                var lucideReady = typeof window.lucide !== 'undefined' || document.querySelector('script[src*="lucide"]');
+                
+                if (tailwindReady && lucideReady) {
+                    // Inicializar Lucide se disponível
+                    if (typeof window.lucide !== 'undefined') {
+                        try {
+                            window.lucide.createIcons();
+                        } catch (e) {
+                            console.warn('Lucide initialization failed:', e);
+                        }
+                    }
+                    callback();
+                } else {
+                    setTimeout(checkLibraries, 50);
+                }
+            };
+            checkLibraries();
+        };
+        
         window.reportModuleError = window.reportModuleError || function(moduleName, error) {
             var msg = "Erro técnico no módulo [" + moduleName + "]: " + (error ? (error.message || error) : "Desconhecido");
             console.error(msg, error);
@@ -94,6 +131,9 @@
     <?!= include('JS_Condominios_Vasilhame'); ?>
     <?!= include('JS_AI_Export'); ?>
     <?!= include('JS_Fichas_Tecnicas'); ?>
+    
+    <!-- Mock para GitHub Pages (deve ser carregado por último) -->
+    <?!= include('JS_Mock'); ?>
 
 </body>
 
