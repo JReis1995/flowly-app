@@ -3,9 +3,10 @@
     // CONFIGURAÇÃO DE BASE DE URL (NORMALIZAÇÃO)
     // ==========================================
 
-    // Definir a base URL canónica para evitar conflitos entre www.flowly.pt e flowly.pt
-    window.FLOWLY_BASE_URL = 'https://flowly.pt';
-    window.FLOWLY_BASE_DOMAIN = 'flowly.pt';
+    // Definir a base URL de forma dinâmica - agnóstica ao domínio
+    const isOfficialDomain = window.location.hostname.includes('flowly.pt');
+    window.FLOWLY_BASE_URL = isOfficialDomain ? 'https://flowly.pt' : window.location.origin;
+    window.FLOWLY_BASE_DOMAIN = isOfficialDomain ? 'flowly.pt' : window.location.hostname;
 
     // Função helper para normalizar URLs
     function normalizeUrl(url) {

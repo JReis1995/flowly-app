@@ -226,17 +226,39 @@
             return false; // Deixar outros erros passarem
         };
         
-        // Interceptor de postMessage
+        // Interceptor de postMessage - Melhorado para capturar mais padrões
         const originalPostMessage = window.postMessage;
         window.postMessage = function(message, targetOrigin, transfer) {
-            // Silenciar mensagens relacionadas com google.script
-            if (typeof message === 'object' && message && (
-                message.type === 'tabs:outgoing' ||
-                (message.func && message.func.includes('google.script'))
-            )) {
-                return; // Não enviar estas mensagens
+            try {
+                // Converter mensagem para string se for objeto para análise
+                const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
+                
+                // Silenciar mensagens relacionadas com google.script, tabs:outgoing e outros padrões problemáticos
+                if (typeof messageStr === 'string' && (
+                    messageStr.includes('tabs:outgoing') ||
+                    messageStr.includes('google.script') ||
+                    messageStr.includes('googleScript') ||
+                    messageStr.includes('google_apps_script') ||
+                    messageStr.includes('iframe') ||
+                    messageStr.includes('frame') ||
+                    (typeof message === 'object' && (
+                        message.type === 'tabs:outgoing' ||
+                        (message.func && message.func.includes('google.script')) ||
+                        (message.action && message.action.includes('google')) ||
+                        (message.source && message.source.includes('google'))
+                    ))
+                )) {
+                    console.debug('[Flowly Mock] Mensagem bloqueada:', messageStr.substring(0, 100) + '...');
+                    return; // Não enviar estas mensagens
+                }
+                
+                // Enviar mensagens permitidas
+                return originalPostMessage.call(this, message, targetOrigin, transfer);
+            } catch (e) {
+                // Silenciar erros do postMessage
+                console.debug('[Flowly Mock] Erro no postMessage interceptado:', e.message);
+                return;
             }
-            return originalPostMessage.call(this, message, targetOrigin, transfer);
         };
         
         // Adicionar banner visual na página
@@ -264,6 +286,66 @@
                 document.body.style.paddingTop = '40px';
             }
         });
+        
+        // Catch global para Promises não tratadas de terceiros (vendor.js)
+        window.addEventListener('unhandledrejection', function(event) {
+            // Filtrar erros relacionados com google.script, postMessage, e infraestrutura Google
+            const reasonStr = event.reason ? (event.reason.message || event.reason.toString()) : '';
+            
+            if (reasonStr && (
+                reasonStr.includes('google.script') ||
+                reasonStr.includes('postMessage') ||
+                reasonStr.includes('tabs:outgoing') ||
+                reasonStr.includes('Frame mismatch') ||
+                reasonStr.includes('googleAppsScript') ||
+                reasonStr.includes('google_apps_script') ||
+                reasonStr.includes('iframe') ||
+                reasonStr.includes('cross-origin') ||
+                reasonStr.includes('SecurityError') ||
+                reasonStr.includes('NetworkError') ||
+                reasonStr.includes('vendor') ||
+                reasonStr.includes('chunk') ||
+                reasonStr.includes('Loading chunk')
+            )) {
+                // Silenciar erros de infraestrutura de terceiros
+                console.debug('[Flowly Mock] Erro de Promise de terceiros silenciado:', reasonStr.substring(0, 100) + '...');
+                event.preventDefault();
+                return;
+            }
+            
+            // Para outros erros, log mas não quebrar a aplicação
+            console.debug('[Flowly Mock] Promise não tratada:', reasonStr);
+            event.preventDefault();
+        });
+        
+        // Catch global para erros assíncronos não capturados
+        window.addEventListener('error', function(event) {
+            const errorMsg = event.message || '';
+            
+            if (errorMsg && (
+                errorMsg.includes('google.script') ||
+                errorMsg.includes('postMessage') ||
+                errorMsg.includes('tabs:outgoing') ||
+                errorMsg.includes('Frame mismatch') ||
+                errorMsg.includes('googleAppsScript') ||
+                errorMsg.includes('google_apps_script') ||
+                errorMsg.includes('iframe') ||
+                errorMsg.includes('cross-origin') ||
+                errorMsg.includes('SecurityError') ||
+                errorMsg.includes('vendor') ||
+                errorMsg.includes('chunk') ||
+                errorMsg.includes('Loading chunk')
+            )) {
+                // Silenciar erros de infraestrutura de terceiros
+                console.debug('[Flowly Mock] Erro de terceiros silenciado:', errorMsg.substring(0, 100) + '...');
+                event.preventDefault();
+                return;
+            }
+            
+            // Para outros erros, log mas não quebrar a aplicação
+            console.debug('[Flowly Mock] Erro global capturado:', errorMsg);
+            event.preventDefault();
+        }, true);
     }
 })();
 </script>

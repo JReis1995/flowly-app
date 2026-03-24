@@ -3,23 +3,26 @@
 <html lang="pt">
 
 <head>
-    <!-- Correção de Domínio: Forçar redirecionamento para evitar Frame Mismatch -->
+    <!-- Correção de Domínio: Forçar redirecionamento apenas para domínio oficial flowly.pt -->
     <script>
         (function() {
             var hostname = window.location.hostname;
             var pathname = window.location.pathname;
             var search = window.location.search;
             
-            // Redirecionar www.flowly.pt para flowly.pt (ou vice-versa) para manter consistência
-            if (hostname.startsWith('www.') && hostname.includes('flowly.pt')) {
-                var newHost = hostname.replace('www.', '');
-                if (hostname !== newHost) {
-                    window.location.replace('https://' + newHost + pathname + search);
+            // Executar redirecionamentos APENAS se estivermos no domínio flowly.pt
+            if (hostname.includes('flowly.pt')) {
+                // Redirecionar www.flowly.pt para flowly.pt (ou vice-versa) para manter consistência
+                if (hostname.startsWith('www.')) {
+                    var newHost = hostname.replace('www.', '');
+                    if (hostname !== newHost) {
+                        window.location.replace('https://' + newHost + pathname + search);
+                    }
                 }
-            }
-            // Também garantir HTTPS
-            if (window.location.protocol === 'http:' && hostname.includes('flowly.pt')) {
-                window.location.replace('https://' + hostname + pathname + search);
+                // Também garantir HTTPS
+                if (window.location.protocol === 'http:') {
+                    window.location.replace('https://' + hostname + pathname + search);
+                }
             }
         })();
     </script>
