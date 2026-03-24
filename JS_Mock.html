@@ -6,6 +6,31 @@
     // Verificar se estamos fora do ambiente Google Apps Script
     if (!window.location.hostname.includes('script.google.com')) {
         
+        // Garantir currentUser no localStorage para modo demo
+        if (!localStorage.getItem('flowly_user')) {
+            const demoUser = {
+                email: 'demo@flowly.pt',
+                name: 'Demo User',
+                role: 'Gestor',
+                authenticated: true,
+                loginTimestamp: Date.now(),
+                planConfig: {
+                    logistica: true,
+                    ia: true,
+                    rh: true,
+                    cc: true,
+                    access: true,
+                    admin: true,
+                    dashboard: true,
+                    exportacao: true,
+                    fleet: true,
+                    crm: true,
+                    fichas_tecnicas: true
+                }
+            };
+            localStorage.setItem('flowly_user', JSON.stringify(demoUser));
+        }
+        
         // Criar mock completo do google.script.run
         window.google = window.google || {};
         window.google.script = window.google.script || {};
@@ -33,10 +58,72 @@
                 setTimeout(() => {
                     if (this._successCallback) {
                         this._successCallback({
-                            modules: { logistica: true, ia: true, rh: true, cc: true, access: true, admin: true, dashboard: true },
-                            user: { email: 'demo@flowly.pt', name: 'Demo User' },
-                            stats: { total: 0, receitas: 0, despesas: 0 }
+                            modules: { logistica: true, ia: true, rh: true, cc: true, access: true, admin: true, dashboard: true, exportacao: true, fleet: true, crm: true, fichas_tecnicas: true },
+                            user: { email: 'demo@flowly.pt', name: 'Demo User', role: 'Gestor' },
+                            stats: { total: 0, receitas: 0, despesas: 0 },
+                            clientConfig: { logistica: true, ia: true, rh: true, cc: true, access: true, admin: true, dashboard: true, exportacao: true, fleet: true, crm: true, fichas_tecnicas: true }
                         });
+                    }
+                }, 100);
+                return this;
+            },
+            
+            // Método getMasterData para o initApp
+            getMasterData: function() {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        this._successCallback({
+                            success: true,
+                            planConfig: {
+                                logistica: true,
+                                ia: true,
+                                rh: true,
+                                cc: true,
+                                access: true,
+                                admin: true,
+                                dashboard: true,
+                                exportacao: true,
+                                fleet: true,
+                                crm: true,
+                                fichas_tecnicas: true
+                            },
+                            users: [{
+                                email: 'demo@flowly.pt',
+                                name: 'Demo User',
+                                role: 'Gestor',
+                                permissions: {
+                                    logistica: true,
+                                    ia: true,
+                                    rh: true,
+                                    cc: true,
+                                    admin: true,
+                                    dashboard: true
+                                }
+                            }],
+                            cc: [],
+                            cargos: ['Owner', 'Gestor', 'Admin', 'Developer', 'Operador'],
+                            isImpersonating: false
+                        });
+                    }
+                }, 100);
+                return this;
+            },
+            
+            // Método getAIAutoPreference
+            getAIAutoPreference: function() {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        this._successCallback(true);
+                    }
+                }, 100);
+                return this;
+            },
+            
+            // Método getAiCredits
+            getAiCredits: function() {
+                setTimeout(() => {
+                    if (this._successCallback) {
+                        this._successCallback(999);
                     }
                 }, 100);
                 return this;
@@ -124,6 +211,33 @@
         
         // Adicionar aviso no console
         console.warn('🔧 Flowly 360: Modo GitHub Pages detectado. Usando mock do google.script.run');
+        
+        // Supressão de erros de frame e postMessage
+        window.onerror = function(msg, source, lineno, colno, error) {
+            // Silenciar erros relacionados com tabs:outgoing e google.script
+            if (typeof msg === 'string' && (
+                msg.includes('tabs:outgoing') ||
+                msg.includes('google.script') ||
+                msg.includes('postMessage') ||
+                msg.includes('Frame mismatch')
+            )) {
+                return true; // Prevenir o erro de aparecer no console
+            }
+            return false; // Deixar outros erros passarem
+        };
+        
+        // Interceptor de postMessage
+        const originalPostMessage = window.postMessage;
+        window.postMessage = function(message, targetOrigin, transfer) {
+            // Silenciar mensagens relacionadas com google.script
+            if (typeof message === 'object' && message && (
+                message.type === 'tabs:outgoing' ||
+                (message.func && message.func.includes('google.script'))
+            )) {
+                return; // Não enviar estas mensagens
+            }
+            return originalPostMessage.call(this, message, targetOrigin, transfer);
+        };
         
         // Adicionar banner visual na página
         document.addEventListener('DOMContentLoaded', function() {
