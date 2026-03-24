@@ -100,13 +100,14 @@
 
     <!-- Proteção contra falhas no carregamento de Fichas Técnicas -->
     <script>
-        // Garantir que Tailwind e Lucide estão carregados antes da lógica de permissões
+        // Garantir que Tailwind, Lucide e Mock estão carregados antes da lógica de permissões
         window.waitForLibraries = function(callback) {
             var checkLibraries = function() {
                 var tailwindReady = typeof window.tailwind !== 'undefined' || document.querySelector('script[src*="tailwind"]');
                 var lucideReady = typeof window.lucide !== 'undefined' || document.querySelector('script[src*="lucide"]');
+                var mockReady = typeof window.google !== 'undefined' && window.google.script && window.google.script.run;
                 
-                if (tailwindReady && lucideReady) {
+                if (tailwindReady && lucideReady && mockReady) {
                     // Inicializar Lucide se disponível
                     if (typeof window.lucide !== 'undefined') {
                         try {

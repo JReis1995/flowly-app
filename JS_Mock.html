@@ -6,6 +6,36 @@
     // Verificar se estamos fora do ambiente Google Apps Script
     if (!window.location.hostname.includes('script.google.com')) {
         
+        // 1. Silenciamento Global de Promessas - Listener para unhandledrejection
+        window.addEventListener('unhandledrejection', function(event) {
+            const reasonStr = event.reason ? (event.reason.message || event.reason.toString()) : '';
+            
+            // Ignorar especificamente mensagens contendo 'tabs:outgoing', 'google.script' ou 'Frame mismatch'
+            if (reasonStr && (
+                reasonStr.includes('tabs:outgoing') ||
+                reasonStr.includes('google.script') ||
+                reasonStr.includes('Frame mismatch') ||
+                reasonStr.includes('postMessage') ||
+                reasonStr.includes('googleAppsScript') ||
+                reasonStr.includes('google_apps_script') ||
+                reasonStr.includes('iframe') ||
+                reasonStr.includes('cross-origin') ||
+                reasonStr.includes('SecurityError') ||
+                reasonStr.includes('NetworkError') ||
+                reasonStr.includes('vendor') ||
+                reasonStr.includes('chunk') ||
+                reasonStr.includes('Loading chunk')
+            )) {
+                console.debug('[Flowly Mock] Erro de Promise silenciado:', reasonStr.substring(0, 100) + '...');
+                event.preventDefault();
+                return;
+            }
+            
+            // Para outros erros, log mas não quebrar a aplicação
+            console.debug('[Flowly Mock] Promise não tratada:', reasonStr);
+            event.preventDefault();
+        });
+        
         // Garantir currentUser no localStorage para modo demo
         if (!localStorage.getItem('flowly_user')) {
             const demoUser = {
@@ -35,7 +65,47 @@
         window.google = window.google || {};
         window.google.script = window.google.script || {};
         
-        // Mock do run com todos os métodos necessários
+        // 2. Proxy de postMessage Robusto - Interceptor antes do mock
+        const originalPostMessage = window.postMessage;
+        window.postMessage = function(message, targetOrigin, transfer) {
+            try {
+                // Ignorar silenciosamente qualquer objeto que contenha a propriedade type: 'tabs:outgoing'
+                if (typeof message === 'object' && message.type === 'tabs:outgoing') {
+                    console.debug('[Flowly Mock] Mensagem tabs:outgoing bloqueada');
+                    return;
+                }
+                
+                // Converter mensagem para string se for objeto para análise
+                const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
+                
+                // Silenciar mensagens relacionadas com google.script e outros padrões problemáticos
+                if (typeof messageStr === 'string' && (
+                    messageStr.includes('tabs:outgoing') ||
+                    messageStr.includes('google.script') ||
+                    messageStr.includes('googleScript') ||
+                    messageStr.includes('google_apps_script') ||
+                    messageStr.includes('iframe') ||
+                    messageStr.includes('frame') ||
+                    (typeof message === 'object' && (
+                        (message.func && message.func.includes('google.script')) ||
+                        (message.action && message.action.includes('google')) ||
+                        (message.source && message.source.includes('google'))
+                    ))
+                )) {
+                    console.debug('[Flowly Mock] Mensagem bloqueada:', messageStr.substring(0, 100) + '...');
+                    return;
+                }
+                
+                // Enviar mensagens permitidas
+                return originalPostMessage.call(this, message, targetOrigin, transfer);
+            } catch (e) {
+                // Silenciar erros do postMessage
+                console.debug('[Flowly Mock] Erro no postMessage interceptado:', e.message);
+                return;
+            }
+        };
+        
+        // 3. Dummy Return - Mock do run com chainig mas sem postMessage original
         window.google.script.run = {
             // Método principal para chamadas de servidor
             withSuccessHandler: function(callback) {
@@ -209,8 +279,9 @@
         
         window.google.script.run = new Proxy(window.google.script.run, handler);
         
-        // Adicionar aviso no console
+        // 4. Tailwind Warning - Aviso no console sobre o CDN do Tailwind
         console.warn('🔧 Flowly 360: Modo GitHub Pages detectado. Usando mock do google.script.run');
+        console.info('ℹ️ Flowly 360: O aviso do CDN do Tailwind é esperado em modo de desenvolvimento/demo');
         
         // Supressão de erros de frame e postMessage
         window.onerror = function(msg, source, lineno, colno, error) {
@@ -224,41 +295,6 @@
                 return true; // Prevenir o erro de aparecer no console
             }
             return false; // Deixar outros erros passarem
-        };
-        
-        // Interceptor de postMessage - Melhorado para capturar mais padrões
-        const originalPostMessage = window.postMessage;
-        window.postMessage = function(message, targetOrigin, transfer) {
-            try {
-                // Converter mensagem para string se for objeto para análise
-                const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
-                
-                // Silenciar mensagens relacionadas com google.script, tabs:outgoing e outros padrões problemáticos
-                if (typeof messageStr === 'string' && (
-                    messageStr.includes('tabs:outgoing') ||
-                    messageStr.includes('google.script') ||
-                    messageStr.includes('googleScript') ||
-                    messageStr.includes('google_apps_script') ||
-                    messageStr.includes('iframe') ||
-                    messageStr.includes('frame') ||
-                    (typeof message === 'object' && (
-                        message.type === 'tabs:outgoing' ||
-                        (message.func && message.func.includes('google.script')) ||
-                        (message.action && message.action.includes('google')) ||
-                        (message.source && message.source.includes('google'))
-                    ))
-                )) {
-                    console.debug('[Flowly Mock] Mensagem bloqueada:', messageStr.substring(0, 100) + '...');
-                    return; // Não enviar estas mensagens
-                }
-                
-                // Enviar mensagens permitidas
-                return originalPostMessage.call(this, message, targetOrigin, transfer);
-            } catch (e) {
-                // Silenciar erros do postMessage
-                console.debug('[Flowly Mock] Erro no postMessage interceptado:', e.message);
-                return;
-            }
         };
         
         // Adicionar banner visual na página
@@ -285,37 +321,6 @@
             if (document.body.style.paddingTop === '' || document.body.style.paddingTop === '0px') {
                 document.body.style.paddingTop = '40px';
             }
-        });
-        
-        // Catch global para Promises não tratadas de terceiros (vendor.js)
-        window.addEventListener('unhandledrejection', function(event) {
-            // Filtrar erros relacionados com google.script, postMessage, e infraestrutura Google
-            const reasonStr = event.reason ? (event.reason.message || event.reason.toString()) : '';
-            
-            if (reasonStr && (
-                reasonStr.includes('google.script') ||
-                reasonStr.includes('postMessage') ||
-                reasonStr.includes('tabs:outgoing') ||
-                reasonStr.includes('Frame mismatch') ||
-                reasonStr.includes('googleAppsScript') ||
-                reasonStr.includes('google_apps_script') ||
-                reasonStr.includes('iframe') ||
-                reasonStr.includes('cross-origin') ||
-                reasonStr.includes('SecurityError') ||
-                reasonStr.includes('NetworkError') ||
-                reasonStr.includes('vendor') ||
-                reasonStr.includes('chunk') ||
-                reasonStr.includes('Loading chunk')
-            )) {
-                // Silenciar erros de infraestrutura de terceiros
-                console.debug('[Flowly Mock] Erro de Promise de terceiros silenciado:', reasonStr.substring(0, 100) + '...');
-                event.preventDefault();
-                return;
-            }
-            
-            // Para outros erros, log mas não quebrar a aplicação
-            console.debug('[Flowly Mock] Promise não tratada:', reasonStr);
-            event.preventDefault();
         });
         
         // Catch global para erros assíncronos não capturados
