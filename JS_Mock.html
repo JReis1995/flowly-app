@@ -115,6 +115,9 @@
             localStorage.setItem('flowly_user', JSON.stringify(demoUser));
         }
         
+        // Definir constante para o Web App URL
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwbE1xesPxxbZsFJIUPG4ToDlc62Z019r9AThGE1kqMLQkXnjQY3Qsz0P45dNYLIqwITQ/exec';
+        
         // Criar mock completo do google.script.run
         window.google = window.google || {};
         window.google.script = window.google.script || {};
@@ -267,10 +270,96 @@
                 return this;
             },
             
+            // Método handleLogin - Chamada real para o servidor via fetch
+            handleLogin: function(email, password) {
+                const self = this;
+                
+                // Fazer chamada real para o Web App
+                fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'login',
+                        email: email,
+                        password: password
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Processar resposta do servidor
+                    if (data.success) {
+                        // Criar objeto de usuário com timestamp para sessão
+                        const userObj = {
+                            email: data.email,
+                            name: data.name,
+                            role: data.role,
+                            authenticated: true,
+                            loginTimestamp: Date.now(),
+                            planConfig: data.planConfig || {},
+                            cargo: data.cargo,
+                            permissions: data.permissions
+                        };
+                        
+                        // Guardar no localStorage
+                        localStorage.setItem('flowly_user', JSON.stringify(userObj));
+                        
+                        // Executar callback de sucesso
+                        if (self._successCallback) {
+                            self._successCallback(userObj);
+                        }
+                    } else {
+                        // Executar callback de falha com erro do servidor
+                        if (self._failureCallback) {
+                            self._failureCallback(data.error || 'Erro desconhecido no login');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('[Flowly Mock] Erro na chamada fetch para login:', error);
+                    
+                    // Tratamento de erro robusto - tentar fallback para modo demo
+                    if (self._failureCallback) {
+                        self._failureCallback('Erro de conexão. Verifique sua internet e tente novamente.');
+                    } else {
+                        // Fallback para modo demo se não houver callback de falha
+                        const demoUser = {
+                            email: 'demo@flowly.pt',
+                            name: 'Demo User (Offline)',
+                            role: 'Gestor',
+                            authenticated: true,
+                            loginTimestamp: Date.now(),
+                            planConfig: {
+                                logistica: true,
+                                ia: true,
+                                rh: true,
+                                cc: true,
+                                access: true,
+                                admin: true,
+                                dashboard: true,
+                                exportacao: true,
+                                fleet: true,
+                                crm: true,
+                                fichas_tecnicas: true
+                            }
+                        };
+                        localStorage.setItem('flowly_user', JSON.stringify(demoUser));
+                        if (self._successCallback) {
+                            self._successCallback(demoUser);
+                        }
+                    }
+                });
+                
+                return this;
+            },
+            
             logout: function() {
                 setTimeout(() => {
                     if (this._successCallback) {
                         this._successCallback(true);
+                        // Limpar localStorage e recarregar
+                        localStorage.removeItem('flowly_user');
                         window.location.reload();
                     }
                 }, 100);
@@ -369,7 +458,7 @@
                 z-index: 9999;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             `;
-            banner.innerHTML = '🚀 Flowly 360 - Modo Demonstração (GitHub Pages) | Funcionalidades limitadas';
+            banner.innerHTML = '🚀 Flowly 360 - Modo GitHub Pages (Login Real) | Autenticação via servidor remoto';
             document.body.insertBefore(banner, document.body.firstChild);
             
             // Ajustar o padding do body para não ficar escondido atrás do banner
