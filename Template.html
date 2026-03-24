@@ -11,7 +11,8 @@
             var search = window.location.search;
             
             // Executar redirecionamentos APENAS se estivermos no domínio flowly.pt
-            if (hostname.includes('flowly.pt')) {
+            // Ignorar completamente se estivermos em github.io ou localhost
+            if (hostname.includes('flowly.pt') && !hostname.includes('github.io') && !hostname.includes('localhost')) {
                 // Redirecionar www.flowly.pt para flowly.pt (ou vice-versa) para manter consistência
                 if (hostname.startsWith('www.')) {
                     var newHost = hostname.replace('www.', '');
@@ -125,9 +126,15 @@
         };
         
         window.reportModuleError = window.reportModuleError || function(moduleName, error) {
-            var msg = "Erro técnico no módulo [" + moduleName + "]: " + (error ? (error.message || error) : "Desconhecido");
-            console.error(msg, error);
-            if (typeof notify === 'function') notify(msg, "error"); else alert(msg);
+            // Usar o novo sistema de diagnóstico FlowlyDebug se disponível
+            if (window.FlowlyDebug && typeof window.FlowlyDebug.logError === 'function') {
+                window.FlowlyDebug.logError(moduleName, error);
+            } else {
+                // Fallback para o sistema antigo
+                var msg = "Erro técnico no módulo [" + moduleName + "]: " + (error ? (error.message || error) : "Desconhecido");
+                console.error(msg, error);
+                if (typeof notify === 'function') notify(msg, "error"); else alert(msg);
+            }
         };
     </script>
 

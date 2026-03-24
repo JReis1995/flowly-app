@@ -6,13 +6,38 @@
     // Verificar se estamos fora do ambiente Google Apps Script
     if (!window.location.hostname.includes('script.google.com')) {
         
-        // 1. Silenciamento Global de Promessas - Listener para unhandledrejection
-        window.addEventListener('unhandledrejection', function(event) {
+        // 0. Captura Global de Erros - Primeira linha de defesa
+        window.onerror = function(msg, source, lineno, colno, error) {
+            const errorMsg = msg ? msg.toString() : '';
+            
+            // Ignorar silenciosamente erros relacionados com tabs:outgoing, message.ready e infraestrutura
+            if (errorMsg && (
+                errorMsg.includes('tabs:outgoing') ||
+                errorMsg.includes('message.ready') ||
+                errorMsg.includes('google.script') ||
+                errorMsg.includes('postMessage') ||
+                errorMsg.includes('Frame mismatch') ||
+                errorMsg.includes('googleAppsScript') ||
+                errorMsg.includes('google_apps_script') ||
+                errorMsg.includes('iframe') ||
+                errorMsg.includes('cross-origin') ||
+                errorMsg.includes('SecurityError') ||
+                errorMsg.includes('vendor') ||
+                errorMsg.includes('chunk') ||
+                errorMsg.includes('Loading chunk')
+            )) {
+                return true; // Prevenir o erro de aparecer no console
+            }
+            return false; // Deixar outros erros passarem
+        };
+        
+        window.onunhandledrejection = function(event) {
             const reasonStr = event.reason ? (event.reason.message || event.reason.toString()) : '';
             
-            // Ignorar especificamente mensagens contendo 'tabs:outgoing', 'google.script' ou 'Frame mismatch'
+            // Ignorar silenciosamente promessas rejeitadas com tabs:outgoing ou message.ready
             if (reasonStr && (
                 reasonStr.includes('tabs:outgoing') ||
+                reasonStr.includes('message.ready') ||
                 reasonStr.includes('google.script') ||
                 reasonStr.includes('Frame mismatch') ||
                 reasonStr.includes('postMessage') ||
@@ -21,7 +46,36 @@
                 reasonStr.includes('iframe') ||
                 reasonStr.includes('cross-origin') ||
                 reasonStr.includes('SecurityError') ||
-                reasonStr.includes('NetworkError') ||
+                reasonStr.includes('vendor') ||
+                reasonStr.includes('chunk') ||
+                reasonStr.includes('Loading chunk')
+            )) {
+                console.debug('[Flowly Mock] Promise rejeitada silenciada:', reasonStr.substring(0, 100) + '...');
+                event.preventDefault();
+                return;
+            }
+            
+            // Para outros erros, log mas não quebrar a aplicação
+            console.debug('[Flowly Mock] Promise não tratada:', reasonStr);
+            event.preventDefault();
+        };
+        
+        // 1. Silenciamento Global de Promessas - Listener para unhandledrejection
+        window.addEventListener('unhandledrejection', function(event) {
+            const reasonStr = event.reason ? (event.reason.message || event.reason.toString()) : '';
+            
+            // Ignorar especificamente mensagens contendo 'tabs:outgoing', 'message.ready', 'google.script' ou 'Frame mismatch'
+            if (reasonStr && (
+                reasonStr.includes('tabs:outgoing') ||
+                reasonStr.includes('message.ready') ||
+                reasonStr.includes('google.script') ||
+                reasonStr.includes('Frame mismatch') ||
+                reasonStr.includes('postMessage') ||
+                reasonStr.includes('googleAppsScript') ||
+                reasonStr.includes('google_apps_script') ||
+                reasonStr.includes('iframe') ||
+                reasonStr.includes('cross-origin') ||
+                reasonStr.includes('SecurityError') ||
                 reasonStr.includes('vendor') ||
                 reasonStr.includes('chunk') ||
                 reasonStr.includes('Loading chunk')
@@ -69,18 +123,19 @@
         const originalPostMessage = window.postMessage;
         window.postMessage = function(message, targetOrigin, transfer) {
             try {
-                // Ignorar silenciosamente qualquer objeto que contenha a propriedade type: 'tabs:outgoing'
-                if (typeof message === 'object' && message.type === 'tabs:outgoing') {
-                    console.debug('[Flowly Mock] Mensagem tabs:outgoing bloqueada');
+                // Ignorar silenciosamente qualquer objeto que contenha a propriedade type: 'tabs:outgoing' ou 'message.ready'
+                if (typeof message === 'object' && (message.type === 'tabs:outgoing' || message.type === 'message.ready')) {
+                    console.debug('[Flowly Mock] Mensagem tabs:outgoing/message.ready bloqueada');
                     return;
                 }
                 
                 // Converter mensagem para string se for objeto para análise
                 const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
                 
-                // Silenciar mensagens relacionadas com google.script e outros padrões problemáticos
+                // Silenciar mensagens relacionadas com google.script, message.ready e outros padrões problemáticos
                 if (typeof messageStr === 'string' && (
                     messageStr.includes('tabs:outgoing') ||
+                    messageStr.includes('message.ready') ||
                     messageStr.includes('google.script') ||
                     messageStr.includes('googleScript') ||
                     messageStr.includes('google_apps_script') ||

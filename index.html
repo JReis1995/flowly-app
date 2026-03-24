@@ -11,13 +11,38 @@
     // Verificar se estamos fora do ambiente Google Apps Script
     if (!window.location.hostname.includes('script.google.com')) {
         
-        // 1. Silenciamento Global de Promessas - Listener para unhandledrejection
-        window.addEventListener('unhandledrejection', function(event) {
+        // 0. Captura Global de Erros - Primeira linha de defesa
+        window.onerror = function(msg, source, lineno, colno, error) {
+            const errorMsg = msg ? msg.toString() : '';
+            
+            // Ignorar silenciosamente erros relacionados com tabs:outgoing, message.ready e infraestrutura
+            if (errorMsg && (
+                errorMsg.includes('tabs:outgoing') ||
+                errorMsg.includes('message.ready') ||
+                errorMsg.includes('google.script') ||
+                errorMsg.includes('postMessage') ||
+                errorMsg.includes('Frame mismatch') ||
+                errorMsg.includes('googleAppsScript') ||
+                errorMsg.includes('google_apps_script') ||
+                errorMsg.includes('iframe') ||
+                errorMsg.includes('cross-origin') ||
+                errorMsg.includes('SecurityError') ||
+                errorMsg.includes('vendor') ||
+                errorMsg.includes('chunk') ||
+                errorMsg.includes('Loading chunk')
+            )) {
+                return true; // Prevenir o erro de aparecer no console
+            }
+            return false; // Deixar outros erros passarem
+        };
+        
+        window.onunhandledrejection = function(event) {
             const reasonStr = event.reason ? (event.reason.message || event.reason.toString()) : '';
             
-            // Ignorar especificamente mensagens contendo 'tabs:outgoing', 'google.script' ou 'Frame mismatch'
+            // Ignorar silenciosamente promessas rejeitadas com tabs:outgoing ou message.ready
             if (reasonStr && (
                 reasonStr.includes('tabs:outgoing') ||
+                reasonStr.includes('message.ready') ||
                 reasonStr.includes('google.script') ||
                 reasonStr.includes('Frame mismatch') ||
                 reasonStr.includes('postMessage') ||
@@ -26,7 +51,36 @@
                 reasonStr.includes('iframe') ||
                 reasonStr.includes('cross-origin') ||
                 reasonStr.includes('SecurityError') ||
-                reasonStr.includes('NetworkError') ||
+                reasonStr.includes('vendor') ||
+                reasonStr.includes('chunk') ||
+                reasonStr.includes('Loading chunk')
+            )) {
+                console.debug('[Flowly Mock] Promise rejeitada silenciada:', reasonStr.substring(0, 100) + '...');
+                event.preventDefault();
+                return;
+            }
+            
+            // Para outros erros, log mas nÃ£o quebrar a aplicaÃ§Ã£o
+            console.debug('[Flowly Mock] Promise nÃ£o tratada:', reasonStr);
+            event.preventDefault();
+        };
+        
+        // 1. Silenciamento Global de Promessas - Listener para unhandledrejection
+        window.addEventListener('unhandledrejection', function(event) {
+            const reasonStr = event.reason ? (event.reason.message || event.reason.toString()) : '';
+            
+            // Ignorar especificamente mensagens contendo 'tabs:outgoing', 'message.ready', 'google.script' ou 'Frame mismatch'
+            if (reasonStr && (
+                reasonStr.includes('tabs:outgoing') ||
+                reasonStr.includes('message.ready') ||
+                reasonStr.includes('google.script') ||
+                reasonStr.includes('Frame mismatch') ||
+                reasonStr.includes('postMessage') ||
+                reasonStr.includes('googleAppsScript') ||
+                reasonStr.includes('google_apps_script') ||
+                reasonStr.includes('iframe') ||
+                reasonStr.includes('cross-origin') ||
+                reasonStr.includes('SecurityError') ||
                 reasonStr.includes('vendor') ||
                 reasonStr.includes('chunk') ||
                 reasonStr.includes('Loading chunk')
@@ -74,18 +128,19 @@
         const originalPostMessage = window.postMessage;
         window.postMessage = function(message, targetOrigin, transfer) {
             try {
-                // Ignorar silenciosamente qualquer objeto que contenha a propriedade type: 'tabs:outgoing'
-                if (typeof message === 'object' && message.type === 'tabs:outgoing') {
-                    console.debug('[Flowly Mock] Mensagem tabs:outgoing bloqueada');
+                // Ignorar silenciosamente qualquer objeto que contenha a propriedade type: 'tabs:outgoing' ou 'message.ready'
+                if (typeof message === 'object' && (message.type === 'tabs:outgoing' || message.type === 'message.ready')) {
+                    console.debug('[Flowly Mock] Mensagem tabs:outgoing/message.ready bloqueada');
                     return;
                 }
                 
                 // Converter mensagem para string se for objeto para anÃ¡lise
                 const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
                 
-                // Silenciar mensagens relacionadas com google.script e outros padrÃµes problemÃ¡ticos
+                // Silenciar mensagens relacionadas com google.script, message.ready e outros padrÃµes problemÃ¡ticos
                 if (typeof messageStr === 'string' && (
                     messageStr.includes('tabs:outgoing') ||
+                    messageStr.includes('message.ready') ||
                     messageStr.includes('google.script') ||
                     messageStr.includes('googleScript') ||
                     messageStr.includes('google_apps_script') ||
@@ -368,7 +423,8 @@
             var search = window.location.search;
             
             // Executar redirecionamentos APENAS se estivermos no domÃ­nio flowly.pt
-            if (hostname.includes('flowly.pt')) {
+            // Ignorar completamente se estivermos em github.io ou localhost
+            if (hostname.includes('flowly.pt') && !hostname.includes('github.io') && !hostname.includes('localhost')) {
                 // Redirecionar www.flowly.pt para flowly.pt (ou vice-versa) para manter consistÃªncia
                 if (hostname.startsWith('www.')) {
                     var newHost = hostname.replace('www.', '');
@@ -5343,9 +5399,15 @@
         };
         
         window.reportModuleError = window.reportModuleError || function(moduleName, error) {
-            var msg = "Erro tÃ©cnico no mÃ³dulo [" + moduleName + "]: " + (error ? (error.message || error) : "Desconhecido");
-            console.error(msg, error);
-            if (typeof notify === 'function') notify(msg, "error"); else alert(msg);
+            // Usar o novo sistema de diagnÃ³stico FlowlyDebug se disponÃ­vel
+            if (window.FlowlyDebug && typeof window.FlowlyDebug.logError === 'function') {
+                window.FlowlyDebug.logError(moduleName, error);
+            } else {
+                // Fallback para o sistema antigo
+                var msg = "Erro tÃ©cnico no mÃ³dulo [" + moduleName + "]: " + (error ? (error.message || error) : "Desconhecido");
+                console.error(msg, error);
+                if (typeof notify === 'function') notify(msg, "error"); else alert(msg);
+            }
         };
     </script>
 
@@ -5359,13 +5421,38 @@
     // Verificar se estamos fora do ambiente Google Apps Script
     if (!window.location.hostname.includes('script.google.com')) {
         
-        // 1. Silenciamento Global de Promessas - Listener para unhandledrejection
-        window.addEventListener('unhandledrejection', function(event) {
+        // 0. Captura Global de Erros - Primeira linha de defesa
+        window.onerror = function(msg, source, lineno, colno, error) {
+            const errorMsg = msg ? msg.toString() : '';
+            
+            // Ignorar silenciosamente erros relacionados com tabs:outgoing, message.ready e infraestrutura
+            if (errorMsg && (
+                errorMsg.includes('tabs:outgoing') ||
+                errorMsg.includes('message.ready') ||
+                errorMsg.includes('google.script') ||
+                errorMsg.includes('postMessage') ||
+                errorMsg.includes('Frame mismatch') ||
+                errorMsg.includes('googleAppsScript') ||
+                errorMsg.includes('google_apps_script') ||
+                errorMsg.includes('iframe') ||
+                errorMsg.includes('cross-origin') ||
+                errorMsg.includes('SecurityError') ||
+                errorMsg.includes('vendor') ||
+                errorMsg.includes('chunk') ||
+                errorMsg.includes('Loading chunk')
+            )) {
+                return true; // Prevenir o erro de aparecer no console
+            }
+            return false; // Deixar outros erros passarem
+        };
+        
+        window.onunhandledrejection = function(event) {
             const reasonStr = event.reason ? (event.reason.message || event.reason.toString()) : '';
             
-            // Ignorar especificamente mensagens contendo 'tabs:outgoing', 'google.script' ou 'Frame mismatch'
+            // Ignorar silenciosamente promessas rejeitadas com tabs:outgoing ou message.ready
             if (reasonStr && (
                 reasonStr.includes('tabs:outgoing') ||
+                reasonStr.includes('message.ready') ||
                 reasonStr.includes('google.script') ||
                 reasonStr.includes('Frame mismatch') ||
                 reasonStr.includes('postMessage') ||
@@ -5374,7 +5461,36 @@
                 reasonStr.includes('iframe') ||
                 reasonStr.includes('cross-origin') ||
                 reasonStr.includes('SecurityError') ||
-                reasonStr.includes('NetworkError') ||
+                reasonStr.includes('vendor') ||
+                reasonStr.includes('chunk') ||
+                reasonStr.includes('Loading chunk')
+            )) {
+                console.debug('[Flowly Mock] Promise rejeitada silenciada:', reasonStr.substring(0, 100) + '...');
+                event.preventDefault();
+                return;
+            }
+            
+            // Para outros erros, log mas nÃ£o quebrar a aplicaÃ§Ã£o
+            console.debug('[Flowly Mock] Promise nÃ£o tratada:', reasonStr);
+            event.preventDefault();
+        };
+        
+        // 1. Silenciamento Global de Promessas - Listener para unhandledrejection
+        window.addEventListener('unhandledrejection', function(event) {
+            const reasonStr = event.reason ? (event.reason.message || event.reason.toString()) : '';
+            
+            // Ignorar especificamente mensagens contendo 'tabs:outgoing', 'message.ready', 'google.script' ou 'Frame mismatch'
+            if (reasonStr && (
+                reasonStr.includes('tabs:outgoing') ||
+                reasonStr.includes('message.ready') ||
+                reasonStr.includes('google.script') ||
+                reasonStr.includes('Frame mismatch') ||
+                reasonStr.includes('postMessage') ||
+                reasonStr.includes('googleAppsScript') ||
+                reasonStr.includes('google_apps_script') ||
+                reasonStr.includes('iframe') ||
+                reasonStr.includes('cross-origin') ||
+                reasonStr.includes('SecurityError') ||
                 reasonStr.includes('vendor') ||
                 reasonStr.includes('chunk') ||
                 reasonStr.includes('Loading chunk')
@@ -5422,18 +5538,19 @@
         const originalPostMessage = window.postMessage;
         window.postMessage = function(message, targetOrigin, transfer) {
             try {
-                // Ignorar silenciosamente qualquer objeto que contenha a propriedade type: 'tabs:outgoing'
-                if (typeof message === 'object' && message.type === 'tabs:outgoing') {
-                    console.debug('[Flowly Mock] Mensagem tabs:outgoing bloqueada');
+                // Ignorar silenciosamente qualquer objeto que contenha a propriedade type: 'tabs:outgoing' ou 'message.ready'
+                if (typeof message === 'object' && (message.type === 'tabs:outgoing' || message.type === 'message.ready')) {
+                    console.debug('[Flowly Mock] Mensagem tabs:outgoing/message.ready bloqueada');
                     return;
                 }
                 
                 // Converter mensagem para string se for objeto para anÃ¡lise
                 const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
                 
-                // Silenciar mensagens relacionadas com google.script e outros padrÃµes problemÃ¡ticos
+                // Silenciar mensagens relacionadas com google.script, message.ready e outros padrÃµes problemÃ¡ticos
                 if (typeof messageStr === 'string' && (
                     messageStr.includes('tabs:outgoing') ||
+                    messageStr.includes('message.ready') ||
                     messageStr.includes('google.script') ||
                     messageStr.includes('googleScript') ||
                     messageStr.includes('google_apps_script') ||
@@ -5709,6 +5826,79 @@
 </script>
 
     <script>
+    // ==========================================
+    // SISTEMA DE DIAGNÃ“STICO FLOWLY - FlowlyDebug
+    // ==========================================
+
+    window.FlowlyDebug = {
+        logError: function(modulo, erro) {
+            const timestamp = new Date().toISOString();
+            const erroStr = erro ? (erro.message || erro.toString()) : 'Erro desconhecido';
+            const stack = erro && erro.stack ? erro.stack : '';
+
+            // Formatar com cores para facilitar identificaÃ§Ã£o no console
+            console.log(
+                `%cðŸ”´ FLOWLY ERROR [%c${modulo}%c] %c${timestamp}`,
+                'color: #fff; background: #ef4444; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+                'color: #fff; background: #06b6d4; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+                'color: #666; font-size: 11px;',
+                'color: #333; font-weight: normal;'
+            );
+
+            console.log(
+                `%c${erroStr}`,
+                'color: #dc2626; background: #fef2f2; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #dc2626; font-weight: 500;'
+            );
+
+            if (stack) {
+                console.log(
+                    `%cStack Trace:`,
+                    'color: #6b7280; font-size: 11px; font-weight: bold;'
+                );
+                console.log(stack);
+            }
+
+            // Tentar usar sistema de notificaÃ§Ã£o se disponÃ­vel
+            if (typeof notify === 'function') {
+                notify(`Erro em [${modulo}]: ${erroStr}`, 'error');
+            }
+        },
+
+        logWarning: function(modulo, mensagem) {
+            const timestamp = new Date().toISOString();
+
+            console.log(
+                `%cðŸŸ¡ FLOWLY WARNING [%c${modulo}%c] %c${timestamp}`,
+                'color: #fff; background: #f59e0b; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+                'color: #fff; background: #06b6d4; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+                'color: #666; font-size: 11px;',
+                'color: #333; font-weight: normal;'
+            );
+
+            console.log(
+                `%c${mensagem}`,
+                'color: #d97706; background: #fffbeb; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #d97706; font-weight: 500;'
+            );
+        },
+
+        logInfo: function(modulo, mensagem) {
+            const timestamp = new Date().toISOString();
+
+            console.log(
+                `%cðŸ’¡ FLOWLY INFO [%c${modulo}%c] %c${timestamp}`,
+                'color: #fff; background: #10b981; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+                'color: #fff; background: #06b6d4; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+                'color: #666; font-size: 11px;',
+                'color: #333; font-weight: normal;'
+            );
+
+            console.log(
+                `%c${mensagem}`,
+                'color: #059669; background: #ecfdf5; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #059669; font-weight: 500;'
+            );
+        }
+    };
+
     // ==========================================
     // CONFIGURAÃ‡ÃƒO DE BASE DE URL (NORMALIZAÃ‡ÃƒO)
     // ==========================================
