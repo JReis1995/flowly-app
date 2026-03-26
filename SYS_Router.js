@@ -41,9 +41,8 @@ function doGet(e) {
       template.creditsAdded = 0;
     }
   }
-  
   // 4. TRATAMENTO DE ATIVAÇÃO DE CONTA / DEFINIÇÃO DE PASSWORD
-  if (page === "setup-password" && token) {
+  else if (page === "setup-password" && token) {
     template.setupToken = token;
     template.initialPage = "setup-password";
   }
