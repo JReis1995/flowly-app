@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SYS_Router.js - Sistema de Routing da Web App Flowly 360
  * Centraliza o tratamento de URLs, Handshake OAuth e Redirecionamentos.
  */
