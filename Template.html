@@ -77,13 +77,18 @@
     <?!= include('Style'); ?>
 </head>
 
-<body class="flex flex-col min-h-screen text-flowly-midnight font-sans" data-setup-token="<?= setupToken ?>"
-    data-action-set-password="<?= (typeof actionSetPassword !== 'undefined' && actionSetPassword) ? 'true' : 'false' ?>"
-    data-set-password-token="<?= (typeof setPasswordToken !== 'undefined' && setPasswordToken) ? setPasswordToken : '' ?>">
+<body class="flex flex-col min-h-screen text-flowly-midnight font-sans" 
+    data-setup-token="<?= typeof setupToken !== 'undefined' ? setupToken : '' ?>"
+    data-action-set-password="<?= typeof actionSetPassword !== 'undefined' && actionSetPassword ? 'true' : 'false' ?>"
+    data-set-password-token="<?= typeof setPasswordToken !== 'undefined' ? setPasswordToken : '' ?>">
 
     <script>
-        window._paymentSuccess = <?= (typeof paymentSuccess !== 'undefined' && paymentSuccess) ? 'true' : 'false' ?>;
-        window._creditsAdded = <?= (typeof creditsAdded !== 'undefined' && creditsAdded != null) ? parseInt(creditsAdded, 10) : 0 ?>;
+        // Proteção Híbrida: Se a tag do GAS não for processada (GitHub Pages), o JS não quebra.
+        var rawPayment = "<?= typeof paymentSuccess !== 'undefined' ? paymentSuccess : 'false' ?>";
+        var rawCredits = "<?= typeof creditsAdded !== 'undefined' ? creditsAdded : '0' ?>";
+        
+        window._paymentSuccess = (rawPayment === 'true' || rawPayment === true);
+        window._creditsAdded = rawCredits.includes('<?') ? 0 : parseInt(rawCredits, 10) || 0;
     </script>
 
     <?!= include('UI_Base'); ?>
