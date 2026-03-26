@@ -3,31 +3,6 @@
 <html lang="pt">
 
 <head>
-    <!-- Correção de Domínio: Forçar redirecionamento apenas para domínio oficial flowly.pt -->
-    <script>
-        (function() {
-            var hostname = window.location.hostname;
-            var pathname = window.location.pathname;
-            var search = window.location.search;
-            
-            // Executar redirecionamentos APENAS se estivermos no domínio flowly.pt
-            // Ignorar completamente se estivermos em github.io ou localhost
-            if (hostname.includes('flowly.pt') && !hostname.includes('github.io') && !hostname.includes('localhost')) {
-                // Redirecionar www.flowly.pt para flowly.pt (ou vice-versa) para manter consistência
-                if (hostname.startsWith('www.')) {
-                    var newHost = hostname.replace('www.', '');
-                    if (hostname !== newHost) {
-                        window.location.replace('https://' + newHost + pathname + search);
-                    }
-                }
-                // Também garantir HTTPS
-                if (window.location.protocol === 'http:') {
-                    window.location.replace('https://' + hostname + pathname + search);
-                }
-            }
-        })();
-    </script>
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Permissions-Policy" content="interest-cohort=(), microphone=(), camera=(), magnetometer=(), gyroscope=(), accelerometer=(), usb=()">
@@ -77,18 +52,13 @@
     <?!= include('Style'); ?>
 </head>
 
-<body class="flex flex-col min-h-screen text-flowly-midnight font-sans" 
-    data-setup-token="<?= typeof setupToken !== 'undefined' ? setupToken : '' ?>"
-    data-action-set-password="<?= typeof actionSetPassword !== 'undefined' && actionSetPassword ? 'true' : 'false' ?>"
-    data-set-password-token="<?= typeof setPasswordToken !== 'undefined' ? setPasswordToken : '' ?>">
+<body class="flex flex-col min-h-screen text-flowly-midnight font-sans" data-setup-token="<?= setupToken ?>"
+    data-action-set-password="<?= (typeof actionSetPassword !== 'undefined' && actionSetPassword) ? 'true' : 'false' ?>"
+    data-set-password-token="<?= (typeof setPasswordToken !== 'undefined' && setPasswordToken) ? setPasswordToken : '' ?>">
 
     <script>
-        // Proteção Híbrida: Se a tag do GAS não for processada (GitHub Pages), o JS não quebra.
-        var rawPayment = "<?= typeof paymentSuccess !== 'undefined' ? paymentSuccess : 'false' ?>";
-        var rawCredits = "<?= typeof creditsAdded !== 'undefined' ? creditsAdded : '0' ?>";
-        
-        window._paymentSuccess = (rawPayment === 'true' || rawPayment === true);
-        window._creditsAdded = rawCredits.includes('<?') ? 0 : parseInt(rawCredits, 10) || 0;
+        window._paymentSuccess = <?= (typeof paymentSuccess !== 'undefined' && paymentSuccess) ? 'true' : 'false' ?>;
+        window._creditsAdded = <?= (typeof creditsAdded !== 'undefined' && creditsAdded != null) ? parseInt(creditsAdded, 10) : 0 ?>;
     </script>
 
     <?!= include('UI_Base'); ?>
@@ -106,46 +76,14 @@
 
     <!-- Proteção contra falhas no carregamento de Fichas Técnicas -->
     <script>
-        // Garantir que Tailwind, Lucide e Mock estão carregados antes da lógica de permissões
-        window.waitForLibraries = function(callback) {
-            var checkLibraries = function() {
-                var tailwindReady = typeof window.tailwind !== 'undefined' || document.querySelector('script[src*="tailwind"]');
-                var lucideReady = typeof window.lucide !== 'undefined' || document.querySelector('script[src*="lucide"]');
-                var mockReady = typeof window.google !== 'undefined' && window.google.script && window.google.script.run;
-                
-                if (tailwindReady && lucideReady && mockReady) {
-                    // Inicializar Lucide se disponível
-                    if (typeof window.lucide !== 'undefined') {
-                        try {
-                            window.lucide.createIcons();
-                        } catch (e) {
-                            console.warn('Lucide initialization failed:', e);
-                        }
-                    }
-                    callback();
-                } else {
-                    setTimeout(checkLibraries, 50);
-                }
-            };
-            checkLibraries();
-        };
-        
         window.reportModuleError = window.reportModuleError || function(moduleName, error) {
-            // Usar o novo sistema de diagnóstico FlowlyDebug se disponível
-            if (window.FlowlyDebug && typeof window.FlowlyDebug.logError === 'function') {
-                window.FlowlyDebug.logError(moduleName, error);
-            } else {
-                // Fallback para o sistema antigo
-                var msg = "Erro técnico no módulo [" + moduleName + "]: " + (error ? (error.message || error) : "Desconhecido");
-                console.error(msg, error);
-                if (typeof notify === 'function') notify(msg, "error"); else alert(msg);
-            }
+            var msg = "Erro técnico no módulo [" + moduleName + "]: " + (error ? (error.message || error) : "Desconhecido");
+            console.error(msg, error);
+            if (typeof notify === 'function') notify(msg, "error"); else alert(msg);
         };
     </script>
 
     <!-- Scripts da Aplicação (Lógica) -->
-    <!-- ORDEM CRÍTICA: Mock deve ser carregado antes dos outros scripts -->
-    <?!= include('JS_Mock'); ?>
     <?!= include('JS_Globals'); ?>
     <?!= include('JS_Auth_Nav'); ?>
     <?!= include('JS_Dashboard'); ?>
@@ -156,7 +94,6 @@
     <?!= include('JS_Condominios_Vasilhame'); ?>
     <?!= include('JS_AI_Export'); ?>
     <?!= include('JS_Fichas_Tecnicas'); ?>
-
 
 </body>
 

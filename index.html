@@ -597,31 +597,6 @@
 })();
 </script>
 
-    <!-- CorreÃ§Ã£o de DomÃ­nio: ForÃ§ar redirecionamento apenas para domÃ­nio oficial flowly.pt -->
-    <script>
-        (function() {
-            var hostname = window.location.hostname;
-            var pathname = window.location.pathname;
-            var search = window.location.search;
-            
-            // Executar redirecionamentos APENAS se estivermos no domÃ­nio flowly.pt
-            // Ignorar completamente se estivermos em github.io ou localhost
-            if (hostname.includes('flowly.pt') && !hostname.includes('github.io') && !hostname.includes('localhost')) {
-                // Redirecionar www.flowly.pt para flowly.pt (ou vice-versa) para manter consistÃªncia
-                if (hostname.startsWith('www.')) {
-                    var newHost = hostname.replace('www.', '');
-                    if (hostname !== newHost) {
-                        window.location.replace('https://' + newHost + pathname + search);
-                    }
-                }
-                // TambÃ©m garantir HTTPS
-                if (window.location.protocol === 'http:') {
-                    window.location.replace('https://' + hostname + pathname + search);
-                }
-            }
-        })();
-    </script>
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Permissions-Policy" content="interest-cohort=(), microphone=(), camera=(), magnetometer=(), gyroscope=(), accelerometer=(), usb=()">
@@ -1245,18 +1220,13 @@
 </style>
 </head>
 
-<body class="flex flex-col min-h-screen text-flowly-midnight font-sans" 
-    data-setup-token="''"
+<body class="flex flex-col min-h-screen text-flowly-midnight font-sans" data-setup-token="''"
     data-action-set-password="''"
     data-set-password-token="''">
 
     <script>
-        // ProteÃ§Ã£o HÃ­brida: Se a tag do GAS nÃ£o for processada (GitHub Pages), o JS nÃ£o quebra.
-        var rawPayment = "''";
-        var rawCredits = "''";
-        
-        window._paymentSuccess = (rawPayment === 'true' || rawPayment === true);
-        window._creditsAdded = rawCredits.includes('<?') ? 0 : parseInt(rawCredits, 10) || 0;
+        window._paymentSuccess = '';
+        window._creditsAdded = '';
     </script>
 
     <!-- TOASTS & OVERLAYS GLOBAIS -->
@@ -5561,721 +5531,22 @@
 
     <!-- ProteÃ§Ã£o contra falhas no carregamento de Fichas TÃ©cnicas -->
     <script>
-        // Garantir que Tailwind, Lucide e Mock estÃ£o carregados antes da lÃ³gica de permissÃµes
-        window.waitForLibraries = function(callback) {
-            var checkLibraries = function() {
-                var tailwindReady = typeof window.tailwind !== 'undefined' || document.querySelector('script[src*="tailwind"]');
-                var lucideReady = typeof window.lucide !== 'undefined' || document.querySelector('script[src*="lucide"]');
-                var mockReady = typeof window.google !== 'undefined' && window.google.script && window.google.script.run;
-                
-                if (tailwindReady && lucideReady && mockReady) {
-                    // Inicializar Lucide se disponÃ­vel
-                    if (typeof window.lucide !== 'undefined') {
-                        try {
-                            window.lucide.createIcons();
-                        } catch (e) {
-                            console.warn('Lucide initialization failed:', e);
-                        }
-                    }
-                    callback();
-                } else {
-                    setTimeout(checkLibraries, 50);
-                }
-            };
-            checkLibraries();
-        };
-        
         window.reportModuleError = window.reportModuleError || function(moduleName, error) {
-            // Usar o novo sistema de diagnÃ³stico FlowlyDebug se disponÃ­vel
-            if (window.FlowlyDebug && typeof window.FlowlyDebug.logError === 'function') {
-                window.FlowlyDebug.logError(moduleName, error);
-            } else {
-                // Fallback para o sistema antigo
-                var msg = "Erro tÃ©cnico no mÃ³dulo [" + moduleName + "]: " + (error ? (error.message || error) : "Desconhecido");
-                console.error(msg, error);
-                if (typeof notify === 'function') notify(msg, "error"); else alert(msg);
-            }
+            var msg = "Erro tÃ©cnico no mÃ³dulo [" + moduleName + "]: " + (error ? (error.message || error) : "Desconhecido");
+            console.error(msg, error);
+            if (typeof notify === 'function') notify(msg, "error"); else alert(msg);
         };
     </script>
 
     <!-- Scripts da AplicaÃ§Ã£o (LÃ³gica) -->
-    <!-- ORDEM CRÃTICA: Mock deve ser carregado antes dos outros scripts -->
-    <!-- JS_Mock.html - Mock do google.script.run para GitHub Pages -->
-<script>
-(function() {
-    'use strict';
-    
-    // Verificar se estamos fora do ambiente Google Apps Script
-    if (!window.location.hostname.includes('script.google.com')) {
-        
-        // 1. Proxy para filtrar console.error e console.warn
-        const originalConsoleError = window.console.error;
-        const originalConsoleWarn = window.console.warn;
-        
-        window.console.error = function(...args) {
-            const message = args.join(' ');
-            if (message.includes('tabs:outgoing') || message.includes('message.ready') || message.includes('google.script')) {
-                return; // Silenciar erros relacionados com tabs:outgoing, message.ready e google.script
-            }
-            return originalConsoleError.apply(console, args);
-        };
-        
-        window.console.warn = function(...args) {
-            const message = args.join(' ');
-            if (message.includes('tabs:outgoing') || message.includes('message.ready') || message.includes('google.script')) {
-                return; // Silenciar avisos relacionados com tabs:outgoing, message.ready e google.script
-            }
-            return originalConsoleWarn.apply(console, args);
-        };
-        
-        // 2. EventListener para capturar erros 'Uncaught (in promise)' e 'No Listener'
-        window.addEventListener('error', function(event) {
-            const errorMsg = event.message || '';
-            if (errorMsg.includes('No Listener') || errorMsg.includes('Uncaught (in promise)') || 
-                errorMsg.includes('tabs:outgoing') || errorMsg.includes('message.ready') || errorMsg.includes('google.script')) {
-                console.debug('[Flowly Mock] Erro de infraestrutura capturado e silenciado:', errorMsg.substring(0, 100) + '...');
-                event.preventDefault();
-                return true;
-            }
-            return false;
-        }, true);
-        
-        // 3. Garantir que window.google.script.run exista antes de qualquer chamada
-        if (!window.google) window.google = {};
-        if (!window.google.script) window.google.script = {};
-        if (!window.google.script.run) {
-            window.google.script.run = {
-                withSuccessHandler: function(callback) {
-                    this._successCallback = callback;
-                    return this;
-                },
-                withFailureHandler: function(callback) {
-                    this._failureCallback = callback;
-                    return this;
-                },
-                withUserObject: function(obj) {
-                    this._userObject = obj;
-                    return this;
-                }
-            };
-        }
-        
-        // 4. Captura Global de Erros - Primeira linha de defesa
-        window.onerror = function(msg, source, lineno, colno, error) {
-            const errorMsg = msg ? msg.toString() : '';
-            
-            // Ignorar silenciosamente erros relacionados com tabs:outgoing, message.ready e infraestrutura
-            if (errorMsg && (
-                errorMsg.includes('tabs:outgoing') ||
-                errorMsg.includes('message.ready') ||
-                errorMsg.includes('google.script') ||
-                errorMsg.includes('postMessage') ||
-                errorMsg.includes('Frame mismatch') ||
-                errorMsg.includes('googleAppsScript') ||
-                errorMsg.includes('google_apps_script') ||
-                errorMsg.includes('iframe') ||
-                errorMsg.includes('cross-origin') ||
-                errorMsg.includes('SecurityError') ||
-                errorMsg.includes('vendor') ||
-                errorMsg.includes('chunk') ||
-                errorMsg.includes('Loading chunk')
-            )) {
-                return true; // Prevenir o erro de aparecer no console
-            }
-            return false; // Deixar outros erros passarem
-        };
-        
-        window.onunhandledrejection = function(event) {
-            const reasonStr = event.reason ? (event.reason.message || event.reason.toString()) : '';
-            
-            // Ignorar silenciosamente promessas rejeitadas com tabs:outgoing ou message.ready
-            if (reasonStr && (
-                reasonStr.includes('tabs:outgoing') ||
-                reasonStr.includes('message.ready') ||
-                reasonStr.includes('google.script') ||
-                reasonStr.includes('Frame mismatch') ||
-                reasonStr.includes('postMessage') ||
-                reasonStr.includes('googleAppsScript') ||
-                reasonStr.includes('google_apps_script') ||
-                reasonStr.includes('iframe') ||
-                reasonStr.includes('cross-origin') ||
-                reasonStr.includes('SecurityError') ||
-                reasonStr.includes('vendor') ||
-                reasonStr.includes('chunk') ||
-                reasonStr.includes('Loading chunk')
-            )) {
-                console.debug('[Flowly Mock] Promise rejeitada silenciada:', reasonStr.substring(0, 100) + '...');
-                event.preventDefault();
-                return;
-            }
-            
-            // Para outros erros, log mas nÃ£o quebrar a aplicaÃ§Ã£o
-            console.debug('[Flowly Mock] Promise nÃ£o tratada:', reasonStr);
-            event.preventDefault();
-        };
-        
-        // 1. Silenciamento Global de Promessas - Listener para unhandledrejection
-        window.addEventListener('unhandledrejection', function(event) {
-            const reasonStr = event.reason ? (event.reason.message || event.reason.toString()) : '';
-            
-            // Ignorar especificamente mensagens contendo 'tabs:outgoing', 'message.ready', 'google.script' ou 'Frame mismatch'
-            if (reasonStr && (
-                reasonStr.includes('tabs:outgoing') ||
-                reasonStr.includes('message.ready') ||
-                reasonStr.includes('google.script') ||
-                reasonStr.includes('Frame mismatch') ||
-                reasonStr.includes('postMessage') ||
-                reasonStr.includes('googleAppsScript') ||
-                reasonStr.includes('google_apps_script') ||
-                reasonStr.includes('iframe') ||
-                reasonStr.includes('cross-origin') ||
-                reasonStr.includes('SecurityError') ||
-                reasonStr.includes('vendor') ||
-                reasonStr.includes('chunk') ||
-                reasonStr.includes('Loading chunk')
-            )) {
-                console.debug('[Flowly Mock] Erro de Promise silenciado:', reasonStr.substring(0, 100) + '...');
-                event.preventDefault();
-                return;
-            }
-            
-            // Para outros erros, log mas nÃ£o quebrar a aplicaÃ§Ã£o
-            console.debug('[Flowly Mock] Promise nÃ£o tratada:', reasonStr);
-            event.preventDefault();
-        });
-        
-        // Garantir currentUser no localStorage para modo demo
-        if (!localStorage.getItem('flowly_user')) {
-            const demoUser = {
-                email: 'demo@flowly.pt',
-                name: 'Demo User',
-                role: 'Gestor',
-                authenticated: true,
-                loginTimestamp: Date.now(),
-                planConfig: {
-                    logistica: true,
-                    ia: true,
-                    rh: true,
-                    cc: true,
-                    access: true,
-                    admin: true,
-                    dashboard: true,
-                    exportacao: true,
-                    fleet: true,
-                    crm: true,
-                    fichas_tecnicas: true
-                }
-            };
-            localStorage.setItem('flowly_user', JSON.stringify(demoUser));
-        }
-        
-        // Definir constante para o Web App URL
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwbE1xesPxxbZsFJIUPG4ToDlc62Z019r9AThGE1kqMLQkXnjQY3Qsz0P45dNYLIqwITQ/exec';
-        
-        // Criar mock completo do google.script.run
-        window.google = window.google || {};
-        window.google.script = window.google.script || {};
-        
-        // 2. Proxy de postMessage Robusto - Interceptor antes do mock
-        const originalPostMessage = window.postMessage;
-        window.postMessage = function(message, targetOrigin, transfer) {
-            try {
-                // Ignorar silenciosamente qualquer objeto que contenha a propriedade type: 'tabs:outgoing' ou 'message.ready'
-                if (typeof message === 'object' && (message.type === 'tabs:outgoing' || message.type === 'message.ready')) {
-                    console.debug('[Flowly Mock] Mensagem tabs:outgoing/message.ready bloqueada');
-                    return;
-                }
-                
-                // Converter mensagem para string se for objeto para anÃ¡lise
-                const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
-                
-                // Silenciar mensagens relacionadas com google.script, message.ready e outros padrÃµes problemÃ¡ticos
-                if (typeof messageStr === 'string' && (
-                    messageStr.includes('tabs:outgoing') ||
-                    messageStr.includes('message.ready') ||
-                    messageStr.includes('google.script') ||
-                    messageStr.includes('googleScript') ||
-                    messageStr.includes('google_apps_script') ||
-                    messageStr.includes('iframe') ||
-                    messageStr.includes('frame') ||
-                    (typeof message === 'object' && (
-                        (message.func && message.func.includes('google.script')) ||
-                        (message.action && message.action.includes('google')) ||
-                        (message.source && message.source.includes('google'))
-                    ))
-                )) {
-                    console.debug('[Flowly Mock] Mensagem bloqueada:', messageStr.substring(0, 100) + '...');
-                    return;
-                }
-                
-                // Enviar mensagens permitidas
-                return originalPostMessage.call(this, message, targetOrigin, transfer);
-            } catch (e) {
-                // Silenciar erros do postMessage
-                console.debug('[Flowly Mock] Erro no postMessage interceptado:', e.message);
-                return;
-            }
-        };
-        
-        // 3. Dummy Return - Mock do run com chainig mas sem postMessage original
-        window.google.script.run = {
-            // MÃ©todo principal para chamadas de servidor
-            withSuccessHandler: function(callback) {
-                this._successCallback = callback;
-                return this;
-            },
-            
-            withFailureHandler: function(callback) {
-                this._failureCallback = callback;
-                return this;
-            },
-            
-            withUserObject: function(obj) {
-                this._userObject = obj;
-                return this;
-            },
-            
-            // MÃ©todos mockados baseados nos usos do projeto
-            getDashboardData: function() {
-                setTimeout(() => {
-                    if (this._successCallback) {
-                        this._successCallback({
-                            modules: { logistica: true, ia: true, rh: true, cc: true, access: true, admin: true, dashboard: true, exportacao: true, fleet: true, crm: true, fichas_tecnicas: true },
-                            user: { email: 'demo@flowly.pt', name: 'Demo User', role: 'Gestor' },
-                            stats: { total: 0, receitas: 0, despesas: 0 },
-                            clientConfig: { logistica: true, ia: true, rh: true, cc: true, access: true, admin: true, dashboard: true, exportacao: true, fleet: true, crm: true, fichas_tecnicas: true }
-                        });
-                    }
-                }, 100);
-                return this;
-            },
-            
-            // MÃ©todo getMasterData para o initApp
-            getMasterData: function() {
-                setTimeout(() => {
-                    if (this._successCallback) {
-                        this._successCallback({
-                            success: true,
-                            planConfig: {
-                                logistica: true,
-                                ia: true,
-                                rh: true,
-                                cc: true,
-                                access: true,
-                                admin: true,
-                                dashboard: true,
-                                exportacao: true,
-                                fleet: true,
-                                crm: true,
-                                fichas_tecnicas: true
-                            },
-                            users: [{
-                                email: 'demo@flowly.pt',
-                                name: 'Demo User',
-                                role: 'Gestor',
-                                permissions: {
-                                    logistica: true,
-                                    ia: true,
-                                    rh: true,
-                                    cc: true,
-                                    admin: true,
-                                    dashboard: true
-                                }
-                            }],
-                            cc: [],
-                            cargos: ['Owner', 'Gestor', 'Admin', 'Developer', 'Operador'],
-                            isImpersonating: false
-                        });
-                    }
-                }, 100);
-                return this;
-            },
-            
-            // MÃ©todo getAIAutoPreference
-            getAIAutoPreference: function() {
-                setTimeout(() => {
-                    if (this._successCallback) {
-                        this._successCallback(true);
-                    }
-                }, 100);
-                return this;
-            },
-            
-            // MÃ©todo getAiCredits
-            getAiCredits: function() {
-                setTimeout(() => {
-                    if (this._successCallback) {
-                        this._successCallback(999);
-                    }
-                }, 100);
-                return this;
-            },
-            
-            getUserSession: function() {
-                setTimeout(() => {
-                    if (this._successCallback) {
-                        this._successCallback({
-                            email: 'demo@flowly.pt',
-                            name: 'Demo User',
-                            authenticated: true
-                        });
-                    }
-                }, 100);
-                return this;
-            },
-            
-            // MÃ©todo handleLogin - Chamada real para o servidor via fetch sem fallbacks
-            handleLogin: function(email, password) {
-                const self = this;
-                
-                // Verificar se o email Ã© demo@flowly.pt (Ãºnico bypass permitido)
-                const isDemoEmail = email === 'demo@flowly.pt';
-                
-                // Se for email demo, permitir login offline imediato
-                if (isDemoEmail) {
-                    console.debug('[Flowly Mock] Login demo detectado, permitindo acesso offline');
-                    
-                    const demoUser = {
-                        email: 'demo@flowly.pt',
-                        name: 'Demo User',
-                        role: 'Gestor',
-                        authenticated: true,
-                        success: true,
-                        loginTimestamp: Date.now(),
-                        planConfig: {
-                            logistica: true,
-                            ia: true,
-                            rh: true,
-                            cc: true,
-                            access: true,
-                            admin: true,
-                            dashboard: true,
-                            exportacao: true,
-                            fleet: true,
-                            crm: true,
-                            fichas_tecnicas: true
-                        }
-                    };
-                    
-                    localStorage.setItem('flowly_user', JSON.stringify(demoUser));
-                    
-                    setTimeout(() => {
-                        if (self._successCallback) {
-                            self._successCallback(demoUser);
-                        }
-                    }, 100);
-                    
-                    return this;
-                }
-                
-                // Tentar chamada real para o Web App
-                fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    mode: 'cors', // Crucial para o GAS
-                    headers: {
-                        'Content-Type': 'text/plain;charset=utf-8', // Evita preflight OPTIONS complexos no GAS
-                    },
-                    body: JSON.stringify({
-                        action: 'login',
-                        email: email,
-                        password: password
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    // Processar resposta do servidor
-                    if (data.success) {
-                        // Criar objeto de usuÃ¡rio com timestamp para sessÃ£o
-                        const userObj = {
-                            email: data.email,
-                            name: data.name,
-                            role: data.role,
-                            authenticated: true,
-                            loginTimestamp: Date.now(),
-                            planConfig: data.planConfig || {},
-                            cargo: data.cargo,
-                            permissions: data.permissions
-                        };
-                        
-                        // Guardar no localStorage
-                        localStorage.setItem('flowly_user', JSON.stringify(userObj));
-                        
-                        // Executar callback de sucesso
-                        if (self._successCallback) {
-                            self._successCallback(userObj);
-                        }
-                    } else {
-                        // Executar callback de falha com erro do servidor
-                        if (self._failureCallback) {
-                            self._failureCallback(data.error || 'Erro desconhecido no login');
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.debug('[Flowly Mock] Erro de conexÃ£o com o servidor:', error);
-                    
-                    // FORÃ‡AR LOGIN OFFLINE EM CASO DE FALHA DE REDE/CORS
-                    const offlineUser = {
-                        email: email || 'offline@flowly.pt',
-                        name: 'Offline User',
-                        role: 'Gestor',
-                        authenticated: true,
-                        success: true,
-                        loginTimestamp: Date.now(),
-                        planConfig: {
-                            logistica: true,
-                            ia: true,
-                            rh: true,
-                            cc: true,
-                            access: true,
-                            admin: true,
-                            dashboard: true,
-                            exportacao: true,
-                            fleet: true,
-                            crm: true,
-                            fichas_tecnicas: true
-                        },
-                        offlineMode: true
-                    };
-                    
-                    localStorage.setItem('flowly_user', JSON.stringify(offlineUser));
-                    
-                    // Executar callback de sucesso com utilizador offline
-                    if (self._successCallback) {
-                        self._successCallback(offlineUser);
-                    }
-                });
-                
-                return this;
-            },
-            
-            logout: function() {
-                setTimeout(() => {
-                    if (this._successCallback) {
-                        this._successCallback(true);
-                        // Limpar localStorage e recarregar
-                        localStorage.removeItem('flowly_user');
-                        window.location.reload();
-                    }
-                }, 100);
-                return this;
-            },
-            
-            // Mock genÃ©rico para qualquer outra chamada
-            _mockGenericCall: function(functionName) {
-                setTimeout(() => {
-                    if (this._successCallback) {
-                        // Retornar dados mock com base no nome da funÃ§Ã£o
-                        let mockData = {};
-                        
-                        if (functionName.includes('get')) {
-                            mockData = { success: true, data: [], total: 0 };
-                        } else if (functionName.includes('save') || functionName.includes('update') || functionName.includes('delete')) {
-                            mockData = { success: true, message: 'OperaÃ§Ã£o simulada com sucesso' };
-                        } else {
-                            mockData = { success: true, message: 'Mock response for ' + functionName };
-                        }
-                        
-                        this._successCallback(mockData);
-                    }
-                }, 150);
-                return this;
-            }
-        };
-        
-        // Adicionar mocks dinÃ¢micos para todos os mÃ©todos possÃ­veis
-        const knownMethods = [
-            'getRegistos', 'saveRegisto', 'deleteRegisto', 'updateRegisto',
-            'getStaff', 'saveStaff', 'deleteStaff', 'updateStaff',
-            'getFrota', 'saveFrota', 'updateFrota',
-            'getAIAnalysis', 'saveAIAnalysis',
-            'getSaaSConfig', 'updateSaaSConfig',
-            'getLogisticaData', 'saveLogisticaData',
-            'getCRMData', 'saveCRMData',
-            'getFichasTecnicas', 'saveFichasTecnicas'
-        ];
-        
-        knownMethods.forEach(method => {
-            window.google.script.run[method] = function() {
-                return this._mockGenericCall(method);
-            };
-        });
-        
-        // Proxy para capturar chamadas de mÃ©todos nÃ£o definidos
-        const handler = {
-            get: function(target, prop) {
-                if (prop in target) {
-                    return target[prop];
-                }
-                
-                // Retornar funÃ§Ã£o mock para qualquer mÃ©todo nÃ£o definido
-                return function() {
-                    console.log(`Mock call: google.script.run.${prop}()`);
-                    return target._mockGenericCall(prop.toString());
-                };
-            }
-        };
-        
-        window.google.script.run = new Proxy(window.google.script.run, handler);
-        
-        // 4. Tailwind Warning - Aviso no console sobre o CDN do Tailwind
-        console.warn('ðŸ”§ Flowly 360: Modo GitHub Pages detectado. Usando mock do google.script.run');
-        console.info('â„¹ï¸ Flowly 360: O aviso do CDN do Tailwind Ã© esperado em modo de desenvolvimento/demo');
-        
-        // SupressÃ£o de erros de frame e postMessage
-        window.onerror = function(msg, source, lineno, colno, error) {
-            // Silenciar erros relacionados com tabs:outgoing e google.script
-            if (typeof msg === 'string' && (
-                msg.includes('tabs:outgoing') ||
-                msg.includes('google.script') ||
-                msg.includes('postMessage') ||
-                msg.includes('Frame mismatch')
-            )) {
-                return true; // Prevenir o erro de aparecer no console
-            }
-            return false; // Deixar outros erros passarem
-        };
-        
-        // Adicionar banner visual na pÃ¡gina
-        document.addEventListener('DOMContentLoaded', function() {
-            const banner = document.createElement('div');
-            banner.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                background: linear-gradient(90deg, #06B6D4, #10B981);
-                color: white;
-                text-align: center;
-                padding: 8px;
-                font-size: 12px;
-                font-weight: bold;
-                z-index: 9999;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            `;
-            banner.innerHTML = 'ðŸš€ Flowly 360 - Modo GitHub Pages (Login Real) | AutenticaÃ§Ã£o via servidor remoto';
-            document.body.insertBefore(banner, document.body.firstChild);
-            
-            // Ajustar o padding do body para nÃ£o ficar escondido atrÃ¡s do banner
-            if (document.body.style.paddingTop === '' || document.body.style.paddingTop === '0px') {
-                document.body.style.paddingTop = '40px';
-            }
-        });
-        
-        // Catch global para erros assÃ­ncronos nÃ£o capturados
-        window.addEventListener('error', function(event) {
-            const errorMsg = event.message || '';
-            
-            if (errorMsg && (
-                errorMsg.includes('google.script') ||
-                errorMsg.includes('postMessage') ||
-                errorMsg.includes('tabs:outgoing') ||
-                errorMsg.includes('Frame mismatch') ||
-                errorMsg.includes('googleAppsScript') ||
-                errorMsg.includes('google_apps_script') ||
-                errorMsg.includes('iframe') ||
-                errorMsg.includes('cross-origin') ||
-                errorMsg.includes('SecurityError') ||
-                errorMsg.includes('vendor') ||
-                errorMsg.includes('chunk') ||
-                errorMsg.includes('Loading chunk')
-            )) {
-                // Silenciar erros de infraestrutura de terceiros
-                console.debug('[Flowly Mock] Erro de terceiros silenciado:', errorMsg.substring(0, 100) + '...');
-                event.preventDefault();
-                return;
-            }
-            
-            // Para outros erros, log mas nÃ£o quebrar a aplicaÃ§Ã£o
-            console.debug('[Flowly Mock] Erro global capturado:', errorMsg);
-            event.preventDefault();
-        }, true);
-    }
-})();
-</script>
-
     <script>
-    // ==========================================
-    // SISTEMA DE DIAGNÃ“STICO FLOWLY - FlowlyDebug
-    // ==========================================
-
-    window.FlowlyDebug = {
-        logError: function(modulo, erro) {
-            const timestamp = new Date().toISOString();
-            const erroStr = erro ? (erro.message || erro.toString()) : 'Erro desconhecido';
-            const stack = erro && erro.stack ? erro.stack : '';
-
-            // Formatar com cores para facilitar identificaÃ§Ã£o no console
-            console.log(
-                `%cðŸ”´ FLOWLY ERROR [%c${modulo}%c] %c${timestamp}`,
-                'color: #fff; background: #ef4444; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
-                'color: #fff; background: #06b6d4; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
-                'color: #666; font-size: 11px;',
-                'color: #333; font-weight: normal;'
-            );
-
-            console.log(
-                `%c${erroStr}`,
-                'color: #dc2626; background: #fef2f2; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #dc2626; font-weight: 500;'
-            );
-
-            if (stack) {
-                console.log(
-                    `%cStack Trace:`,
-                    'color: #6b7280; font-size: 11px; font-weight: bold;'
-                );
-                console.log(stack);
-            }
-
-            // Tentar usar sistema de notificaÃ§Ã£o se disponÃ­vel
-            if (typeof notify === 'function') {
-                notify(`Erro em [${modulo}]: ${erroStr}`, 'error');
-            }
-        },
-
-        logWarning: function(modulo, mensagem) {
-            const timestamp = new Date().toISOString();
-
-            console.log(
-                `%cðŸŸ¡ FLOWLY WARNING [%c${modulo}%c] %c${timestamp}`,
-                'color: #fff; background: #f59e0b; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
-                'color: #fff; background: #06b6d4; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
-                'color: #666; font-size: 11px;',
-                'color: #333; font-weight: normal;'
-            );
-
-            console.log(
-                `%c${mensagem}`,
-                'color: #d97706; background: #fffbeb; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #d97706; font-weight: 500;'
-            );
-        },
-
-        logInfo: function(modulo, mensagem) {
-            const timestamp = new Date().toISOString();
-
-            console.log(
-                `%cðŸ’¡ FLOWLY INFO [%c${modulo}%c] %c${timestamp}`,
-                'color: #fff; background: #10b981; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
-                'color: #fff; background: #06b6d4; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
-                'color: #666; font-size: 11px;',
-                'color: #333; font-weight: normal;'
-            );
-
-            console.log(
-                `%c${mensagem}`,
-                'color: #059669; background: #ecfdf5; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #059669; font-weight: 500;'
-            );
-        }
-    };
-
     // ==========================================
     // CONFIGURAÃ‡ÃƒO DE BASE DE URL (NORMALIZAÃ‡ÃƒO)
     // ==========================================
 
-    // Definir a base URL de forma dinÃ¢mica - agnÃ³stica ao domÃ­nio
-    const isOfficialDomain = window.location.hostname.includes('flowly.pt');
-    window.FLOWLY_BASE_URL = isOfficialDomain ? 'https://flowly.pt' : window.location.origin;
-    window.FLOWLY_BASE_DOMAIN = isOfficialDomain ? 'flowly.pt' : window.location.hostname;
+    // Definir a base URL canÃ³nica para evitar conflitos entre www.flowly.pt e flowly.pt
+    window.FLOWLY_BASE_URL = 'https://flowly.pt';
+    window.FLOWLY_BASE_DOMAIN = 'flowly.pt';
 
     // FunÃ§Ã£o helper para normalizar URLs
     function normalizeUrl(url) {
@@ -6287,15 +5558,6 @@
     // ==========================================
     // 0. UTILITÃRIOS DE PERFORMANCE E GERAIS
     // ==========================================
-
-    /** Global Sanitization: Aniquila resÃ­duos de tags GAS, nulls ou undefineds */
-    window.scrub = function(val) {
-        if (val === null || val === undefined) return '';
-        const str = String(val).trim();
-        if (str.toLowerCase() === 'undefined' || str.toLowerCase() === 'null') return '';
-        if (str.includes('<?') || str.includes('?>') || str.includes('<?!=')) return '';
-        return str;
-    };
 
     /** Debounce: atrasa execuÃ§Ã£o de fn por `delay` ms apÃ³s Ãºltima chamada */
     function debounce(fn, delay) {
@@ -6785,17 +6047,15 @@
                 window._creditsAdded = 0;
             }
 
-            // Nova SanitizaÃ§Ã£o ImplacÃ¡vel
-            const setupToken = window.scrub(document.body.dataset.setupToken);
-            const actionSetPassword = window.scrub(document.body.dataset.actionSetPassword) === 'true';
-            const setPasswordToken = window.scrub(document.body.dataset.setPasswordToken);
+            const setupToken = document.body.dataset.setupToken || '';
+            const actionSetPassword = document.body.dataset.actionSetPassword === 'true';
+            const setPasswordToken = document.body.dataset.setPasswordToken || '';
 
-            // Routing blindado com verificaÃ§Ã£o de comprimento (> 10 chars)
-            if (actionSetPassword && setPasswordToken.length > 10) {
+            if (actionSetPassword && setPasswordToken) {
                 document.getElementById('authOverlay').classList.add('hidden');
                 document.getElementById('viewSetTeamPassword').classList.remove('hidden');
                 document.getElementById('setTeamPasswordToken').value = setPasswordToken;
-            } else if (setupToken.length > 10) {
+            } else if (setupToken) {
                 document.getElementById('authOverlay').classList.add('hidden');
                 document.getElementById('viewSetupPassword').classList.remove('hidden');
                 document.getElementById('viewSetupPassword').dataset.token = setupToken;
@@ -7083,46 +6343,121 @@
             .getAiCredits(emailToFetch);
     }
 
-    // ==========================================
-    // 7. PURGA DE UI (DOM Cleanup) - SPRINT 3
-    // ==========================================
-
     /**
-     * Sistema de Purga de UI: Elimina resÃ­duos do Google Apps Script do DOM
-     * antes da pÃ¡gina ser apresentada ao utilizador, garantindo uma UI limpa.
-     */
-    document.addEventListener('DOMContentLoaded', function() {
-        function purgeGasTags(node) {
-            // Limpar nÃ³s de texto
-            if (node.nodeType === Node.TEXT_NODE) {
-                if (node.nodeValue.includes('<?') || node.nodeValue.includes('?>')) {
-                    node.nodeValue = '';
-                }
-            } 
-            // Limpar atributos de elementos (ex: href, src, data-*)
-            else if (node.nodeType === Node.ELEMENT_NODE) {
-                for (let i = 0; i < node.attributes.length; i++) {
-                    if (node.attributes[i].value.includes('<?') || node.attributes[i].value.includes('?>')) {
-                        node.attributes[i].value = '';
-                    }
-                }
-                // Recursividade para os filhos
-                for (let child of node.childNodes) {
-                    purgeGasTags(child);
-                }
-            }
-        }
-        
-        // Executar a purga no body inteiro
-        purgeGasTags(document.body);
-        
-        // Log informativo para debugging
-        if (window.FlowlyDebug && window.FlowlyDebug.logInfo) {
-            window.FlowlyDebug.logInfo('UI Purge', 'ðŸ§¹ ResÃ­duos de GAS eliminados do DOM com sucesso.');
-        } else {
-            console.info('ðŸ§¹ Flowly UI Purge: ResÃ­duos de GAS eliminados do DOM.');
-        }
-    });
+ * FunÃ§Ã£o getInitialData() - Retorna dados iniciais para o dashboard estÃ¡tico
+ * Esta funÃ§Ã£o deve ser colada no seu ficheiro Code.gs do Google Apps Script
+ */
+function getInitialData(e) {
+  try {
+    // Obter parÃ¢metros da requisiÃ§Ã£o (se houver)
+    const params = e ? e.parameter : {};
+    const action = params.action || 'getInitialData';
+    
+    if (action !== 'getInitialData') {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'AÃ§Ã£o invÃ¡lida'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Obter email do utilizador atual
+    const userEmail = Session.getActiveUser().getEmail();
+    
+    // Verificar se o utilizador estÃ¡ autenticado
+    if (!userEmail) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Utilizador nÃ£o autenticado'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Dados padrÃ£o para retornar
+    const responseData = {
+      success: true,
+      setupToken: '', // Token de setup se necessÃ¡rio
+      actionSetPassword: false, // AÃ§Ã£o de definir password
+      setPasswordToken: '', // Token para definir password
+      paymentSuccess: false, // Se pagamento foi bem sucedido
+      creditsAdded: 0 // CrÃ©ditos adicionados
+    };
+    
+    // Verificar se hÃ¡ parÃ¢metros de URL especÃ­ficos (setup, password, pagamento)
+    const urlParams = e ? e.parameter : {};
+    
+    // Verificar token de setup
+    if (urlParams.setupToken) {
+      responseData.setupToken = urlParams.setupToken;
+    }
+    
+    // Verificar aÃ§Ã£o de definir password
+    if (urlParams.actionSetPassword === 'true') {
+      responseData.actionSetPassword = true;
+      responseData.setPasswordToken = urlParams.setPasswordToken || '';
+    }
+    
+    // Verificar sucesso de pagamento
+    if (urlParams.paymentSuccess === 'true') {
+      responseData.paymentSuccess = true;
+      responseData.creditsAdded = parseInt(urlParams.creditsAdded) || 0;
+    }
+    
+    // Opcional: Buscar dados adicionais da base de dados se necessÃ¡rio
+    try {
+      // Exemplo: Buscar configuraÃ§Ãµes do utilizador
+      const userSettings = getUserSettings(userEmail);
+      if (userSettings) {
+        // Adicionar quaisquer dados especÃ­ficos do utilizador
+        Object.assign(responseData, userSettings);
+      }
+    } catch (error) {
+      console.log('Erro ao buscar configuraÃ§Ãµes do utilizador: ' + error.toString());
+    }
+    
+    // Retornar resposta JSON
+    return ContentService.createTextOutput(JSON.stringify(responseData))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } catch (error) {
+    console.error('Erro em getInitialData: ' + error.toString());
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Erro interno do servidor',
+      details: error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * FunÃ§Ã£o auxiliar para buscar configuraÃ§Ãµes do utilizador (opcional)
+ */
+function getUserSettings(userEmail) {
+  try {
+    // Implementar lÃ³gica para buscar configuraÃ§Ãµes do utilizador
+    // Por exemplo, da aba Users_DB ou de UserProperties
+    
+    // Exemplo bÃ¡sico - retornar null se nÃ£o implementado
+    return null;
+    
+  } catch (error) {
+    console.log('Erro em getUserSettings: ' + error.toString());
+    return null;
+  }
+}
+
+/**
+ * FunÃ§Ã£o doPost() necessÃ¡ria para receber requisiÃ§Ãµes POST do frontend
+ */
+function doPost(e) {
+  return getInitialData(e);
+}
+
+/**
+ * FunÃ§Ã£o doGet() para requisiÃ§Ãµes GET (se necessÃ¡rio)
+ */
+function doGet(e) {
+  return getInitialData(e);
+}
 </script>
     <!-- 10. JS_Auth_Nav.html -->
 <script>
@@ -7193,24 +6528,17 @@
         const p = (document.getElementById('l_pass').value || '').trim();
         if (!e || !p) return notify("Credenciais obrigatÃ³rias.", "warning");
         notify("Validando...", "info");
-        
-        // Login simples e direto - confia inteiramente no google.script.run
-        google.script.run
-            .withSuccessHandler(res => {
-                if (res.success) {
-                    currentUser = res;
-                    currentUser.loginTimestamp = Date.now();
-                    if (res.role !== 'SuperAdmin') currentImpersonate = null;
-                    localStorage.setItem('flowly_user', JSON.stringify(currentUser));
-                    initApp();
-                } else {
-                    notify(res.error, "error");
-                }
-            })
-            .withFailureHandler(err => {
-                notify(err, "error");
-            })
-            .handleLogin(e, p);
+        google.script.run.withSuccessHandler(res => {
+            if (res.success) {
+                currentUser = res;
+                currentUser.loginTimestamp = Date.now();
+                if (res.role !== 'SuperAdmin') currentImpersonate = null;
+                localStorage.setItem('flowly_user', JSON.stringify(currentUser));
+                initApp();
+            } else {
+                notify(res.error, "error");
+            }
+        }).handleLogin(e, p);
     }
 
     function submitSetupPassword() {
@@ -15127,7 +14455,6 @@ function _ftPrintFT() {
 window.ftModuleReady = true;
 console.log("[DEBUG] MÃ³dulo Fichas TÃ©cnicas carregado com sucesso!");
 </script>
-
 
 
 </body>

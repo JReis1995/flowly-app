@@ -372,35 +372,11 @@ function handleLogin(email, password) {
 
 function doPost(e) {
   try {
-    // Verificar se é uma requisição de login via GitHub Pages
+    // 1. Recebe os dados do site
     var contents = e.postData.contents;
     var data = JSON.parse(contents);
-    
-    // Se for uma ação de login, tratar especificamente
-    if (data && data.action === 'login') {
-      var email = data.email;
-      var password = data.password;
-      
-      // Chamar função de login existente e devolver resposta JSON
-      var loginResult = handleLogin(email, password);
-      
-      // Garantir que o resultado é um objeto simples (sem referências a Sheets)
-      var cleanResult = {
-        success: loginResult.success || false,
-        error: loginResult.error || null,
-        role: loginResult.role || null,
-        name: loginResult.name || null,
-        email: loginResult.email || null,
-        planConfig: loginResult.planConfig || null,
-        cargo: loginResult.cargo || null,
-        permissions: loginResult.permissions || null
-      };
-      
-      return ContentService.createTextOutput(JSON.stringify(cleanResult))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-    
-    // Código original para captura de leads (mantido para compatibilidade)
+
+    // 2. Abre a folha de cálculo e a aba específica
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName('Leads');
 
@@ -408,7 +384,7 @@ function doPost(e) {
       throw new Error("Aba 'Leads' não encontrada. Cria uma aba com este nome no teu Sheets.");
     }
 
-    // Gravar os dados na ordem: Data | Nome | Email | Empresa | Localidade | Setor | Mensagem
+    // 3. Grava os dados na ordem: Data | Nome | Email | Empresa | Localidade | Setor | Mensagem
     sheet.appendRow([
       new Date(),
       data.name || "N/A",
@@ -419,7 +395,7 @@ function doPost(e) {
       data.message || "N/A"
     ]);
 
-    // Resposta de sucesso para o site
+    // 4. Resposta de sucesso para o site
     return ContentService.createTextOutput("Sucesso").setMimeType(ContentService.MimeType.TEXT);
 
   } catch (error) {

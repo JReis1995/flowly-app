@@ -67,24 +67,17 @@
         const p = (document.getElementById('l_pass').value || '').trim();
         if (!e || !p) return notify("Credenciais obrigatórias.", "warning");
         notify("Validando...", "info");
-        
-        // Login simples e direto - confia inteiramente no google.script.run
-        google.script.run
-            .withSuccessHandler(res => {
-                if (res.success) {
-                    currentUser = res;
-                    currentUser.loginTimestamp = Date.now();
-                    if (res.role !== 'SuperAdmin') currentImpersonate = null;
-                    localStorage.setItem('flowly_user', JSON.stringify(currentUser));
-                    initApp();
-                } else {
-                    notify(res.error, "error");
-                }
-            })
-            .withFailureHandler(err => {
-                notify(err, "error");
-            })
-            .handleLogin(e, p);
+        google.script.run.withSuccessHandler(res => {
+            if (res.success) {
+                currentUser = res;
+                currentUser.loginTimestamp = Date.now();
+                if (res.role !== 'SuperAdmin') currentImpersonate = null;
+                localStorage.setItem('flowly_user', JSON.stringify(currentUser));
+                initApp();
+            } else {
+                notify(res.error, "error");
+            }
+        }).handleLogin(e, p);
     }
 
     function submitSetupPassword() {

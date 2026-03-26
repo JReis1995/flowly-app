@@ -1,85 +1,11 @@
 <script>
     // ==========================================
-    // SISTEMA DE DIAGNÓSTICO FLOWLY - FlowlyDebug
-    // ==========================================
-
-    window.FlowlyDebug = {
-        logError: function(modulo, erro) {
-            const timestamp = new Date().toISOString();
-            const erroStr = erro ? (erro.message || erro.toString()) : 'Erro desconhecido';
-            const stack = erro && erro.stack ? erro.stack : '';
-
-            // Formatar com cores para facilitar identificação no console
-            console.log(
-                `%c🔴 FLOWLY ERROR [%c${modulo}%c] %c${timestamp}`,
-                'color: #fff; background: #ef4444; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
-                'color: #fff; background: #06b6d4; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
-                'color: #666; font-size: 11px;',
-                'color: #333; font-weight: normal;'
-            );
-
-            console.log(
-                `%c${erroStr}`,
-                'color: #dc2626; background: #fef2f2; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #dc2626; font-weight: 500;'
-            );
-
-            if (stack) {
-                console.log(
-                    `%cStack Trace:`,
-                    'color: #6b7280; font-size: 11px; font-weight: bold;'
-                );
-                console.log(stack);
-            }
-
-            // Tentar usar sistema de notificação se disponível
-            if (typeof notify === 'function') {
-                notify(`Erro em [${modulo}]: ${erroStr}`, 'error');
-            }
-        },
-
-        logWarning: function(modulo, mensagem) {
-            const timestamp = new Date().toISOString();
-
-            console.log(
-                `%c🟡 FLOWLY WARNING [%c${modulo}%c] %c${timestamp}`,
-                'color: #fff; background: #f59e0b; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
-                'color: #fff; background: #06b6d4; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
-                'color: #666; font-size: 11px;',
-                'color: #333; font-weight: normal;'
-            );
-
-            console.log(
-                `%c${mensagem}`,
-                'color: #d97706; background: #fffbeb; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #d97706; font-weight: 500;'
-            );
-        },
-
-        logInfo: function(modulo, mensagem) {
-            const timestamp = new Date().toISOString();
-
-            console.log(
-                `%c💡 FLOWLY INFO [%c${modulo}%c] %c${timestamp}`,
-                'color: #fff; background: #10b981; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
-                'color: #fff; background: #06b6d4; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
-                'color: #666; font-size: 11px;',
-                'color: #333; font-weight: normal;'
-            );
-
-            console.log(
-                `%c${mensagem}`,
-                'color: #059669; background: #ecfdf5; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #059669; font-weight: 500;'
-            );
-        }
-    };
-
-    // ==========================================
     // CONFIGURAÇÃO DE BASE DE URL (NORMALIZAÇÃO)
     // ==========================================
 
-    // Definir a base URL de forma dinâmica - agnóstica ao domínio
-    const isOfficialDomain = window.location.hostname.includes('flowly.pt');
-    window.FLOWLY_BASE_URL = isOfficialDomain ? 'https://flowly.pt' : window.location.origin;
-    window.FLOWLY_BASE_DOMAIN = isOfficialDomain ? 'flowly.pt' : window.location.hostname;
+    // Definir a base URL canónica para evitar conflitos entre www.flowly.pt e flowly.pt
+    window.FLOWLY_BASE_URL = 'https://flowly.pt';
+    window.FLOWLY_BASE_DOMAIN = 'flowly.pt';
 
     // Função helper para normalizar URLs
     function normalizeUrl(url) {
@@ -91,15 +17,6 @@
     // ==========================================
     // 0. UTILITÁRIOS DE PERFORMANCE E GERAIS
     // ==========================================
-
-    /** Global Sanitization: Aniquila resíduos de tags GAS, nulls ou undefineds */
-    window.scrub = function(val) {
-        if (val === null || val === undefined) return '';
-        const str = String(val).trim();
-        if (str.toLowerCase() === 'undefined' || str.toLowerCase() === 'null') return '';
-        if (str.includes('<?') || str.includes('?>') || str.includes('<?!=')) return '';
-        return str;
-    };
 
     /** Debounce: atrasa execução de fn por `delay` ms após última chamada */
     function debounce(fn, delay) {
@@ -589,17 +506,15 @@
                 window._creditsAdded = 0;
             }
 
-            // Nova Sanitização Implacável
-            const setupToken = window.scrub(document.body.dataset.setupToken);
-            const actionSetPassword = window.scrub(document.body.dataset.actionSetPassword) === 'true';
-            const setPasswordToken = window.scrub(document.body.dataset.setPasswordToken);
+            const setupToken = document.body.dataset.setupToken || '';
+            const actionSetPassword = document.body.dataset.actionSetPassword === 'true';
+            const setPasswordToken = document.body.dataset.setPasswordToken || '';
 
-            // Routing blindado com verificação de comprimento (> 10 chars)
-            if (actionSetPassword && setPasswordToken.length > 10) {
+            if (actionSetPassword && setPasswordToken) {
                 document.getElementById('authOverlay').classList.add('hidden');
                 document.getElementById('viewSetTeamPassword').classList.remove('hidden');
                 document.getElementById('setTeamPasswordToken').value = setPasswordToken;
-            } else if (setupToken.length > 10) {
+            } else if (setupToken) {
                 document.getElementById('authOverlay').classList.add('hidden');
                 document.getElementById('viewSetupPassword').classList.remove('hidden');
                 document.getElementById('viewSetupPassword').dataset.token = setupToken;
@@ -887,44 +802,119 @@
             .getAiCredits(emailToFetch);
     }
 
-    // ==========================================
-    // 7. PURGA DE UI (DOM Cleanup) - SPRINT 3
-    // ==========================================
-
     /**
-     * Sistema de Purga de UI: Elimina resíduos do Google Apps Script do DOM
-     * antes da página ser apresentada ao utilizador, garantindo uma UI limpa.
-     */
-    document.addEventListener('DOMContentLoaded', function() {
-        function purgeGasTags(node) {
-            // Limpar nós de texto
-            if (node.nodeType === Node.TEXT_NODE) {
-                if (node.nodeValue.includes('<?') || node.nodeValue.includes('?>')) {
-                    node.nodeValue = '';
-                }
-            } 
-            // Limpar atributos de elementos (ex: href, src, data-*)
-            else if (node.nodeType === Node.ELEMENT_NODE) {
-                for (let i = 0; i < node.attributes.length; i++) {
-                    if (node.attributes[i].value.includes('<?') || node.attributes[i].value.includes('?>')) {
-                        node.attributes[i].value = '';
-                    }
-                }
-                // Recursividade para os filhos
-                for (let child of node.childNodes) {
-                    purgeGasTags(child);
-                }
-            }
-        }
-        
-        // Executar a purga no body inteiro
-        purgeGasTags(document.body);
-        
-        // Log informativo para debugging
-        if (window.FlowlyDebug && window.FlowlyDebug.logInfo) {
-            window.FlowlyDebug.logInfo('UI Purge', '🧹 Resíduos de GAS eliminados do DOM com sucesso.');
-        } else {
-            console.info('🧹 Flowly UI Purge: Resíduos de GAS eliminados do DOM.');
-        }
-    });
+ * Função getInitialData() - Retorna dados iniciais para o dashboard estático
+ * Esta função deve ser colada no seu ficheiro Code.gs do Google Apps Script
+ */
+function getInitialData(e) {
+  try {
+    // Obter parâmetros da requisição (se houver)
+    const params = e ? e.parameter : {};
+    const action = params.action || 'getInitialData';
+    
+    if (action !== 'getInitialData') {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Ação inválida'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Obter email do utilizador atual
+    const userEmail = Session.getActiveUser().getEmail();
+    
+    // Verificar se o utilizador está autenticado
+    if (!userEmail) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Utilizador não autenticado'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Dados padrão para retornar
+    const responseData = {
+      success: true,
+      setupToken: '', // Token de setup se necessário
+      actionSetPassword: false, // Ação de definir password
+      setPasswordToken: '', // Token para definir password
+      paymentSuccess: false, // Se pagamento foi bem sucedido
+      creditsAdded: 0 // Créditos adicionados
+    };
+    
+    // Verificar se há parâmetros de URL específicos (setup, password, pagamento)
+    const urlParams = e ? e.parameter : {};
+    
+    // Verificar token de setup
+    if (urlParams.setupToken) {
+      responseData.setupToken = urlParams.setupToken;
+    }
+    
+    // Verificar ação de definir password
+    if (urlParams.actionSetPassword === 'true') {
+      responseData.actionSetPassword = true;
+      responseData.setPasswordToken = urlParams.setPasswordToken || '';
+    }
+    
+    // Verificar sucesso de pagamento
+    if (urlParams.paymentSuccess === 'true') {
+      responseData.paymentSuccess = true;
+      responseData.creditsAdded = parseInt(urlParams.creditsAdded) || 0;
+    }
+    
+    // Opcional: Buscar dados adicionais da base de dados se necessário
+    try {
+      // Exemplo: Buscar configurações do utilizador
+      const userSettings = getUserSettings(userEmail);
+      if (userSettings) {
+        // Adicionar quaisquer dados específicos do utilizador
+        Object.assign(responseData, userSettings);
+      }
+    } catch (error) {
+      console.log('Erro ao buscar configurações do utilizador: ' + error.toString());
+    }
+    
+    // Retornar resposta JSON
+    return ContentService.createTextOutput(JSON.stringify(responseData))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } catch (error) {
+    console.error('Erro em getInitialData: ' + error.toString());
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Erro interno do servidor',
+      details: error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * Função auxiliar para buscar configurações do utilizador (opcional)
+ */
+function getUserSettings(userEmail) {
+  try {
+    // Implementar lógica para buscar configurações do utilizador
+    // Por exemplo, da aba Users_DB ou de UserProperties
+    
+    // Exemplo básico - retornar null se não implementado
+    return null;
+    
+  } catch (error) {
+    console.log('Erro em getUserSettings: ' + error.toString());
+    return null;
+  }
+}
+
+/**
+ * Função doPost() necessária para receber requisições POST do frontend
+ */
+function doPost(e) {
+  return getInitialData(e);
+}
+
+/**
+ * Função doGet() para requisições GET (se necessário)
+ */
+function doGet(e) {
+  return getInitialData(e);
+}
 </script>
