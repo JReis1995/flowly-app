@@ -40,6 +40,7 @@
     "https://www.googleapis.com/auth/gmail.settings.basic",
     "https://mail.google.com/",
     "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/drive.readonly"
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/script.container.ui"
   ]
 }

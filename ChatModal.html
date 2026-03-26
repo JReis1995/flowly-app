@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    :root { --bg: #0d1117; --surface: #161b22; --text: #c9d1d9; --accent: #2f81f7; --border: #30363d; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    
+    /* Área das mensagens */
+    #chat-history { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+    
+    /* Balões de Chat */
+    .message { max-width: 90%; padding: 12px 16px; border-radius: 8px; line-height: 1.5; font-size: 14px; position: relative; }
+    .msg-user { align-self: flex-end; background-color: var(--accent); color: white; border-bottom-right-radius: 0; }
+    .msg-ai { align-self: flex-start; background-color: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 0; white-space: pre-wrap; word-wrap: break-word; font-family: monospace; width: 100%;}
+    
+    /* Botão de Copiar dentro da mensagem da IA */
+    .copy-btn { position: absolute; top: 10px; right: 10px; background: var(--border); border: none; color: var(--text); padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; transition: 0.2s;}
+    .copy-btn:hover { background: #8b949e; color: white; }
+    
+    /* Área de Input */
+    #input-area { padding: 15px; background-color: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 10px; }
+    textarea { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; resize: none; font-family: inherit; font-size: 14px; outline: none; }
+    textarea:focus { border-color: var(--accent); }
+    button.send-btn { background-color: var(--accent); color: white; border: none; padding: 0 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    button.send-btn:hover { background-color: #1f6feb; }
+    
+    /* Loader */
+    .typing { font-style: italic; color: #8b949e; display: none; padding-left: 20px; padding-bottom: 10px;}
+  </style>
+</head>
+<body>
+
+  <div id="chat-history">
+    <div class="message msg-ai">Olá! Sou o Arquiteto do Flowly. Como posso ajudar com os Sprints hoje?</div>
+  </div>
+  
+  <div id="loader" class="typing">A gerar Sprints... aguarda.</div>
+
+  <div id="input-area">
+    <textarea id="prompt-input" rows="3" placeholder="Cola o sintoma, erro ou instrução aqui... (Podes usar Shift+Enter para nova linha)"></textarea>
+    <button class="send-btn" onclick="sendMessage()">Enviar</button>
+  </div>
+
+  <script>
+    const chatHistory = document.getElementById('chat-history');
+    const promptInput = document.getElementById('prompt-input');
+    const loader = document.getElementById('loader');
+
+    // Permite enviar com "Enter" (sem shift)
+    promptInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+
+    function sendMessage() {
+      const text = promptInput.value.trim();
+      if (!text) return;
+
+      // 1. Mostra a mensagem do utilizador
+      appendMessage('user', text);
+      promptInput.value = '';
+      
+      // 2. Mostra Loader e bloqueia input
+      loader.style.display = 'block';
+      promptInput.disabled = true;
+
+      // 3. Chama o Google Apps Script (Servidor)
+      google.script.run
+        .withSuccessHandler(onSuccess)
+        .withFailureHandler(onFailure)
+        .enviarParaGeminiChat(text);
+    }
+
+    function onSuccess(response) {
+      loader.style.display = 'none';
+      promptInput.disabled = false;
+      promptInput.focus();
+      appendMessage('ai', response);
+    }
+
+    function onFailure(error) {
+      loader.style.display = 'none';
+      promptInput.disabled = false;
+      appendMessage('ai', "❌ Erro Crítico: " + error.message);
+    }
+
+    function appendMessage(sender, text) {
+      const div = document.createElement('div');
+      div.className = sender === 'user' ? 'message msg-user' : 'message msg-ai';
+      
+      // Se for a IA, adiciona o botão de copiar
+      if (sender === 'ai') {
+        const btn = document.createElement('button');
+        btn.className = 'copy-btn';
+        btn.innerText = 'Copiar Código';
+        btn.onclick = () => copyText(text, btn);
+        div.appendChild(btn);
+        
+        // Adiciona o texto (usando createTextNode para evitar injecção de HTML indesejada)
+        const textNode = document.createTextNode(text);
+        div.appendChild(textNode);
+      } else {
+        div.innerText = text;
+      }
+
+      chatHistory.appendChild(div);
+      chatHistory.scrollTop = chatHistory.scrollHeight; // Faz scroll automático para o fundo
+    }
+
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        btn.innerText = 'Copiado!';
+        btn.style.background = '#2ea043'; // Fica verde
+        setTimeout(() => { btn.innerText = 'Copiar Código'; btn.style.background = 'var(--border)'; }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>

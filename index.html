@@ -6288,6 +6288,15 @@
     // 0. UTILITÃRIOS DE PERFORMANCE E GERAIS
     // ==========================================
 
+    /** Global Sanitization: Aniquila resÃ­duos de tags GAS, nulls ou undefineds */
+    window.scrub = function(val) {
+        if (val === null || val === undefined) return '';
+        const str = String(val).trim();
+        if (str.toLowerCase() === 'undefined' || str.toLowerCase() === 'null') return '';
+        if (str.includes('<?') || str.includes('?>') || str.includes('<?!=')) return '';
+        return str;
+    };
+
     /** Debounce: atrasa execuÃ§Ã£o de fn por `delay` ms apÃ³s Ãºltima chamada */
     function debounce(fn, delay) {
         let timer;
@@ -6776,21 +6785,17 @@
                 window._creditsAdded = 0;
             }
 
-            let rawSetupToken = document.body.dataset.setupToken || '';
-            let rawActionSetPassword = document.body.dataset.actionSetPassword || '';
-            let rawSetPasswordToken = document.body.dataset.setPasswordToken || '';
+            // Nova SanitizaÃ§Ã£o ImplacÃ¡vel
+            const setupToken = window.scrub(document.body.dataset.setupToken);
+            const actionSetPassword = window.scrub(document.body.dataset.actionSetPassword) === 'true';
+            const setPasswordToken = window.scrub(document.body.dataset.setPasswordToken);
 
-            // SanitizaÃ§Ã£o crÃ­tica para ambiente estÃ¡tico (GitHub Pages)
-            // Se a string contiver '<?', significa que a tag GAS nÃ£o foi processada no servidor.
-            const setupToken = rawSetupToken.includes('<?') ? '' : rawSetupToken;
-            const actionSetPassword = rawActionSetPassword.includes('<?') ? false : (rawActionSetPassword === 'true');
-            const setPasswordToken = rawSetPasswordToken.includes('<?') ? '' : rawSetPasswordToken;
-
-            if (actionSetPassword && setPasswordToken) {
+            // Routing blindado com verificaÃ§Ã£o de comprimento (> 10 chars)
+            if (actionSetPassword && setPasswordToken.length > 10) {
                 document.getElementById('authOverlay').classList.add('hidden');
                 document.getElementById('viewSetTeamPassword').classList.remove('hidden');
                 document.getElementById('setTeamPasswordToken').value = setPasswordToken;
-            } else if (setupToken) {
+            } else if (setupToken.length > 10) {
                 document.getElementById('authOverlay').classList.add('hidden');
                 document.getElementById('viewSetupPassword').classList.remove('hidden');
                 document.getElementById('viewSetupPassword').dataset.token = setupToken;
@@ -7077,6 +7082,47 @@
             })
             .getAiCredits(emailToFetch);
     }
+
+    // ==========================================
+    // 7. PURGA DE UI (DOM Cleanup) - SPRINT 3
+    // ==========================================
+
+    /**
+     * Sistema de Purga de UI: Elimina resÃ­duos do Google Apps Script do DOM
+     * antes da pÃ¡gina ser apresentada ao utilizador, garantindo uma UI limpa.
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+        function purgeGasTags(node) {
+            // Limpar nÃ³s de texto
+            if (node.nodeType === Node.TEXT_NODE) {
+                if (node.nodeValue.includes('<?') || node.nodeValue.includes('?>')) {
+                    node.nodeValue = '';
+                }
+            } 
+            // Limpar atributos de elementos (ex: href, src, data-*)
+            else if (node.nodeType === Node.ELEMENT_NODE) {
+                for (let i = 0; i < node.attributes.length; i++) {
+                    if (node.attributes[i].value.includes('<?') || node.attributes[i].value.includes('?>')) {
+                        node.attributes[i].value = '';
+                    }
+                }
+                // Recursividade para os filhos
+                for (let child of node.childNodes) {
+                    purgeGasTags(child);
+                }
+            }
+        }
+        
+        // Executar a purga no body inteiro
+        purgeGasTags(document.body);
+        
+        // Log informativo para debugging
+        if (window.FlowlyDebug && window.FlowlyDebug.logInfo) {
+            window.FlowlyDebug.logInfo('UI Purge', 'ðŸ§¹ ResÃ­duos de GAS eliminados do DOM com sucesso.');
+        } else {
+            console.info('ðŸ§¹ Flowly UI Purge: ResÃ­duos de GAS eliminados do DOM.');
+        }
+    });
 </script>
     <!-- 10. JS_Auth_Nav.html -->
 <script>
