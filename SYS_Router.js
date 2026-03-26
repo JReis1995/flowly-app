@@ -5,13 +5,13 @@
 
 // --- SERVIÇO HTML PRINCIPAL ---
 function doGet(e) {
-  const params = (e && e.parameter) || {};
-  const code = (params.code || "").toString();
-  const state = (params.state || "").toString();
-  const page = (params.page || "").toString().toLowerCase();
-  const action = (params.action || "").toString().toLowerCase();
-  const sessionId = (params.session_id || "").toString();
-  const token = (params.token || "").toString();
+  var params = (e && e.parameter) || {};
+  var code = (params.code || "").toString();
+  var state = (params.state || "").toString();
+  var page = (params.page || "").toString().toLowerCase();
+  var action = (params.action || "").toString().toLowerCase();
+  var sessionId = (params.session_id || "").toString();
+  var token = (params.token || "").toString();
 
   // 1. HANDSHAKE OAUTH SAGE CLOUD
   // Se houver 'code' e 'state', estamos a receber o callback da Sage
@@ -20,7 +20,7 @@ function doGet(e) {
   }
 
   // 2. PREPARAÇÃO DO TEMPLATE INDEX.HTML
-  const template = HtmlService.createTemplateFromFile('Template');
+  var template = HtmlService.createTemplateFromFile('Template');
   
   // Inicialização segura de variáveis de template (evita erros de "is not defined")
   template.setupToken = "";
@@ -33,7 +33,7 @@ function doGet(e) {
   // 3. TRATAMENTO DE REDIRECIONAMENTO DE SUCESSO DA STRIPE
   if (page === "success" && sessionId) {
     try {
-      const result = completePurchase(sessionId);
+      var result = completePurchase(sessionId);
       template.paymentSuccess = result.success;
       template.creditsAdded = result.success ? (result.credits || 0) : 0;
     } catch (err) {
@@ -74,34 +74,34 @@ function doGet(e) {
  */
 function completePurchase(sessionId) {
   try {
-    const props = PropertiesService.getScriptProperties();
-    const stripeSecret = props.getProperty('STRIPE_SECRET_KEY');
+    var props = PropertiesService.getScriptProperties();
+    var stripeSecret = props.getProperty('STRIPE_SECRET_KEY');
     if (!stripeSecret) throw new Error("STRIPE_SECRET_KEY não configurada.");
 
     // Evita processamento duplo (Idempotência básica)
-    const checkKey = "STRIPE_PROC_" + sessionId;
+    var checkKey = "STRIPE_PROC_" + sessionId;
     if (props.getProperty(checkKey)) {
       return { success: true, credits: 0, note: "Já processado" };
     }
 
-    const url = "https://api.stripe.com/v1/checkout/sessions/" + sessionId;
-    const options = {
+    var url = "https://api.stripe.com/v1/checkout/sessions/" + sessionId;
+    var options = {
       method: "get",
       headers: { "Authorization": "Bearer " + stripeSecret },
       muteHttpExceptions: true
     };
 
-    const resp = UrlFetchApp.fetch(url, options);
-    const json = JSON.parse(resp.getContentText());
+    var resp = UrlFetchApp.fetch(url, options);
+    var json = JSON.parse(resp.getContentText());
 
     if (resp.getResponseCode() !== 200 || !json || json.payment_status !== 'paid') {
       return { success: false, error: "Pagamento não confirmado ou sessão inválida." };
     }
 
     // Extração de metadados definidos no createStripeCheckout (em MOD_SaaS.js)
-    const metadata = json.metadata || {};
-    const email = metadata.userEmail || metadata.email;
-    const credits = parseInt(metadata.credits || "0", 10);
+    var metadata = json.metadata || {};
+    var email = metadata.userEmail || metadata.email;
+    var credits = parseInt(metadata.credits || "0", 10);
 
     if (!email || isNaN(credits) || credits <= 0) {
       return { success: false, error: "Dados da compra incompletos nos metadados." };
@@ -126,23 +126,23 @@ function completePurchase(sessionId) {
  */
 function handleSageCallback(code, state) {
   try {
-    const props = PropertiesService.getScriptProperties();
-    const storedState = props.getProperty("SAGE_OAUTH_STATE") || "";
+    var props = PropertiesService.getScriptProperties();
+    var storedState = props.getProperty("SAGE_OAUTH_STATE") || "";
     
     if (state !== storedState) {
       return HtmlService.createHtmlOutput("<p>Erro de validação OAuth (CSRF). Tente novamente.</p>");
     }
     
-    const clientId = props.getProperty("SAGE_CLIENT_ID") || "";
-    const clientSecret = props.getProperty("SAGE_CLIENT_SECRET") || "";
-    const redirectUri = ScriptApp.getService().getUrl();
+    var clientId = props.getProperty("SAGE_CLIENT_ID") || "";
+    var clientSecret = props.getProperty("SAGE_CLIENT_SECRET") || "";
+    var redirectUri = ScriptApp.getService().getUrl();
     
     if (!clientId || !clientSecret) {
       return HtmlService.createHtmlOutput("<p>Credenciais Sage (Client ID/Secret) não configuradas.</p>");
     }
 
-    const tokenUrl = "https://oauth.accounting.sage.com/token";
-    const payload = {
+    var tokenUrl = "https://oauth.accounting.sage.com/token";
+    var payload = {
       grant_type: "authorization_code",
       code: code,
       redirect_uri: redirectUri,
@@ -150,13 +150,13 @@ function handleSageCallback(code, state) {
       client_secret: clientSecret
     };
 
-    const resp = UrlFetchApp.fetch(tokenUrl, {
+    var resp = UrlFetchApp.fetch(tokenUrl, {
       method: "post",
       payload: payload,
       muteHttpExceptions: true
     });
     
-    const json = JSON.parse(resp.getContentText());
+    var json = JSON.parse(resp.getContentText());
     if (json.error) {
       props.deleteProperty("SAGE_OAUTH_STATE");
       return HtmlService.createHtmlOutput("<p>Erro Sage OAuth: " + (json.error_description || json.error) + "</p>");
@@ -170,7 +170,7 @@ function handleSageCallback(code, state) {
     props.deleteProperty("SAGE_OAUTH_STATE");
     
     // Redireciona para o URL limpo da App
-    const cleanUrl = redirectUri.split("?")[0];
+    var cleanUrl = redirectUri.split("?")[0];
     return HtmlService.createHtmlOutput("<script>window.location.href='" + cleanUrl + "';</script>");
     
   } catch (err) {
@@ -191,14 +191,14 @@ function include(filename) {
  */
 function startOAuthFlow() {
   try {
-    const clientId = PropertiesService.getScriptProperties().getProperty("SAGE_CLIENT_ID") || "";
+    var clientId = PropertiesService.getScriptProperties().getProperty("SAGE_CLIENT_ID") || "";
     if (!clientId) return { success: false, error: "SAGE_CLIENT_ID não configurado." };
     
-    const redirectUri = ScriptApp.getService().getUrl();
-    const state = Utilities.getUuid();
+    var redirectUri = ScriptApp.getService().getUrl();
+    var state = Utilities.getUuid();
     PropertiesService.getScriptProperties().setProperty("SAGE_OAUTH_STATE", state);
     
-    const authUrl = "https://www.sageone.com/oauth2/auth/central" +
+    var authUrl = "https://www.sageone.com/oauth2/auth/central" +
       "?filter=apiv3.1" +
       "&country=pt" + // Ajustado para PT se necessário
       "&response_type=code" +
