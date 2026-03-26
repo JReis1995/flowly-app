@@ -40,10 +40,8 @@ function doGet(e) {
       template.paymentSuccess = false;
       template.creditsAdded = 0;
     }
-  } 
-  
+  }
   // 4. TRATAMENTO DE ATIVAÇÃO DE CONTA / DEFINIÇÃO DE PASSWORD
-  // Caso A: Ativação via Colaboradores (setup-password)
   else if (page === "setup-password" && token) {
     template.setupToken = token;
     template.initialPage = "setup-password";
