@@ -68,115 +68,9 @@
         if (!e || !p) return notify("Credenciais obrigatórias.", "warning");
         notify("Validando...", "info");
         
-        // Verificar se estamos em ambiente Mock (fora do Google Apps Script)
-        const isMockEnvironment = !window.location.hostname.includes('script.google.com');
-        
-        if (isMockEnvironment) {
-            // Em ambiente Mock, adicionar timeout e fallback para modo offline
-            const loginTimeout = setTimeout(() => {
-                console.debug('[Flowly Auth] Timeout do login, ativando modo offline/demo');
-                notify('Servidor não respondeu. Entrando em Modo Offline/Demo...', 'info');
-                
-                // Criar usuário offline/demo
-                const offlineUser = {
-                    success: true,
-                    email: e,
-                    name: 'Offline Demo User',
-                    role: 'Gestor',
-                    authenticated: true,
-                    loginTimestamp: Date.now(),
-                    planConfig: {
-                        logistica: true,
-                        ia: true,
-                        rh: true,
-                        cc: true,
-                        access: true,
-                        admin: true,
-                        dashboard: true,
-                        exportacao: true,
-                        fleet: true,
-                        crm: true,
-                        fichas_tecnicas: true
-                    },
-                    isOfflineMode: true
-                };
-                
-                currentUser = offlineUser;
-                currentUser.loginTimestamp = Date.now();
-                if (offlineUser.role !== 'SuperAdmin') currentImpersonate = null;
-                localStorage.setItem('flowly_user', JSON.stringify(currentUser));
-                
-                // Mostrar banner de modo offline
-                setTimeout(() => {
-                    notify('🚀 Modo Offline/Demo ativado - Testes de interface disponíveis', 'success');
-                }, 500);
-
-                initApp();
-            }, 5000); // 5 segundos timeout
-
-            // Tentar login normal com callback de sucesso/erro
-            google.script.run
-                .withSuccessHandler(res => {
-                    clearTimeout(loginTimeout); // Cancelar timeout se login tiver sucesso
-                    if (res.success) {
-                        currentUser = res;
-                        currentUser.loginTimestamp = Date.now();
-                        if (res.role !== 'SuperAdmin') currentImpersonate = null;
-                        localStorage.setItem('flowly_user', JSON.stringify(currentUser));
-                        initApp();
-                    } else {
-                        notify(res.error, "error");
-                    }
-                })
-                .withFailureHandler(err => {
-                    clearTimeout(loginTimeout); // Cancelar timeout
-                    console.debug('[Flowly Auth] Falha no login, verificando se deve entrar em modo offline');
-
-                    // Se for erro de conexão/CORS, permitir modo offline
-                    if (err.includes('fetch') || err.includes('network') || err.includes('CORS') || err.includes('Failed to fetch')) {
-                        notify('Erro de conexão. Ativando Modo Offline/Demo...', 'warning');
-
-                        const offlineUser = {
-                            success: true,
-                            email: e,
-                            name: 'Offline User',
-                            role: 'Gestor',
-                            authenticated: true,
-                            loginTimestamp: Date.now(),
-                            planConfig: {
-                                logistica: true,
-                                ia: true,
-                                rh: true,
-                                cc: true,
-                                access: true,
-                                admin: true,
-                                dashboard: true,
-                                exportacao: true,
-                                fleet: true,
-                                crm: true,
-                                fichas_tecnicas: true
-                            },
-                            isOfflineMode: true
-                        };
-
-                        currentUser = offlineUser;
-                        currentUser.loginTimestamp = Date.now();
-                        if (offlineUser.role !== 'SuperAdmin') currentImpersonate = null;
-                        localStorage.setItem('flowly_user', JSON.stringify(currentUser));
-
-                        setTimeout(() => {
-                            notify('🚀 Modo Offline/Demo ativado - Testes de interface disponíveis', 'success');
-                        }, 500);
-
-                        initApp();
-                    } else {
-                        notify(err, "error");
-                    }
-                })
-                .handleLogin(e, p);
-        } else {
-            // Ambiente Google Apps Script - login normal
-            google.script.run.withSuccessHandler(res => {
+        // Login simples e direto - confia inteiramente no google.script.run
+        google.script.run
+            .withSuccessHandler(res => {
                 if (res.success) {
                     currentUser = res;
                     currentUser.loginTimestamp = Date.now();
@@ -186,8 +80,11 @@
                 } else {
                     notify(res.error, "error");
                 }
-            }).handleLogin(e, p);
-        }
+            })
+            .withFailureHandler(err => {
+                notify(err, "error");
+            })
+            .handleLogin(e, p);
     }
 
     function submitSetupPassword() {

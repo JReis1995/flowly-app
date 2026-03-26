@@ -322,21 +322,20 @@
                 return this;
             },
             
-            // Método handleLogin - Chamada real para o servidor via fetch com fallback robusto
+            // Método handleLogin - Chamada real para o servidor via fetch sem fallbacks
             handleLogin: function(email, password) {
                 const self = this;
                 
-                // Verificar se estamos em ambiente Mock e se o email é demo
-                const isMockEnvironment = !window.location.hostname.includes('script.google.com');
+                // Verificar se o email é demo@flowly.pt (único bypass permitido)
                 const isDemoEmail = email === 'demo@flowly.pt';
                 
-                // Se for ambiente Mock e email demo, permitir login offline imediato
-                if (isMockEnvironment && isDemoEmail) {
-                    console.debug('[Flowly Mock] Login demo offline detectado, permitindo acesso');
+                // Se for email demo, permitir login offline imediato
+                if (isDemoEmail) {
+                    console.debug('[Flowly Mock] Login demo detectado, permitindo acesso offline');
                     
                     const demoUser = {
                         email: 'demo@flowly.pt',
-                        name: 'Demo User (Offline)',
+                        name: 'Demo User',
                         role: 'Gestor',
                         authenticated: true,
                         success: true,
@@ -368,150 +367,55 @@
                 }
                 
                 // Tentar chamada real para o Web App
-                try {
-                    fetch(WEB_APP_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            action: 'login',
-                            email: email,
-                            password: password
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        // Processar resposta do servidor
-                        if (data.success) {
-                            // Criar objeto de usuário com timestamp para sessão
-                            const userObj = {
-                                email: data.email,
-                                name: data.name,
-                                role: data.role,
-                                authenticated: true,
-                                loginTimestamp: Date.now(),
-                                planConfig: data.planConfig || {},
-                                cargo: data.cargo,
-                                permissions: data.permissions
-                            };
-                            
-                            // Guardar no localStorage
-                            localStorage.setItem('flowly_user', JSON.stringify(userObj));
-                            
-                            // Executar callback de sucesso
-                            if (self._successCallback) {
-                                self._successCallback(userObj);
-                            }
-                        } else {
-                            // Executar callback de falha com erro do servidor
-                            if (self._failureCallback) {
-                                self._failureCallback(data.error || 'Erro desconhecido no login');
-                            }
-                        }
-                    })
-                    .catch(error => {
-                        console.debug('[Flowly Mock] Erro de conexão detectado, ativando fallback offline');
-                        
-                        // Tratamento robusto de CORS TypeError - fallback para modo demo
-                        if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                            console.debug('[Flowly Mock] CORS/Network error, permitindo login offline para testes');
-                            
-                            const offlineUser = {
-                                email: email,
-                                name: 'Offline User',
-                                role: 'Gestor',
-                                authenticated: true,
-                                success: true,
-                                loginTimestamp: Date.now(),
-                                planConfig: {
-                                    logistica: true,
-                                    ia: true,
-                                    rh: true,
-                                    cc: true,
-                                    access: true,
-                                    admin: true,
-                                    dashboard: true,
-                                    exportacao: true,
-                                    fleet: true,
-                                    crm: true,
-                                    fichas_tecnicas: true
-                                }
-                            };
-                            
-                            localStorage.setItem('flowly_user', JSON.stringify(offlineUser));
-                            
-                            if (self._successCallback) {
-                                self._successCallback(offlineUser);
-                            }
-                        } else {
-                            // Para outros erros, tentar callback de falha
-                            if (self._failureCallback) {
-                                self._failureCallback('Erro de conexão. Verifique sua internet e tente novamente.');
-                            } else {
-                                // Fallback final para modo demo
-                                const fallbackUser = {
-                                    email: email,
-                                    name: 'Fallback User',
-                                    role: 'Gestor',
-                                    authenticated: true,
-                                    success: true,
-                                    loginTimestamp: Date.now(),
-                                    planConfig: {
-                                        logistica: true,
-                                        ia: true,
-                                        rh: true,
-                                        cc: true,
-                                        access: true,
-                                        admin: true,
-                                        dashboard: true,
-                                        exportacao: true,
-                                        fleet: true,
-                                        crm: true,
-                                        fichas_tecnicas: true
-                                    }
-                                };
-                                localStorage.setItem('flowly_user', JSON.stringify(fallbackUser));
-                                if (self._successCallback) {
-                                    self._successCallback(fallbackUser);
-                                }
-                            }
-                        }
-                    });
-                } catch (fetchError) {
-                    console.debug('[Flowly Mock] Erro crítico no fetch, ativando modo demo emergencial');
-                    
-                    // Fallback emergencial para qualquer erro crítico
-                    const emergencyUser = {
+                fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'login',
                         email: email,
-                        name: 'Emergency Demo User',
-                        role: 'Gestor',
-                        authenticated: true,
-                        success: true,
-                        loginTimestamp: Date.now(),
-                        planConfig: {
-                            logistica: true,
-                            ia: true,
-                            rh: true,
-                            cc: true,
-                            access: true,
-                            admin: true,
-                            dashboard: true,
-                            exportacao: true,
-                            fleet: true,
-                            crm: true,
-                            fichas_tecnicas: true
-                        }
-                    };
-                    
-                    localStorage.setItem('flowly_user', JSON.stringify(emergencyUser));
-                    
-                    setTimeout(() => {
+                        password: password
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Processar resposta do servidor
+                    if (data.success) {
+                        // Criar objeto de usuário com timestamp para sessão
+                        const userObj = {
+                            email: data.email,
+                            name: data.name,
+                            role: data.role,
+                            authenticated: true,
+                            loginTimestamp: Date.now(),
+                            planConfig: data.planConfig || {},
+                            cargo: data.cargo,
+                            permissions: data.permissions
+                        };
+                        
+                        // Guardar no localStorage
+                        localStorage.setItem('flowly_user', JSON.stringify(userObj));
+                        
+                        // Executar callback de sucesso
                         if (self._successCallback) {
-                            self._successCallback(emergencyUser);
+                            self._successCallback(userObj);
                         }
-                    }, 100);
-                }
+                    } else {
+                        // Executar callback de falha com erro do servidor
+                        if (self._failureCallback) {
+                            self._failureCallback(data.error || 'Erro desconhecido no login');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.debug('[Flowly Mock] Erro de conexão com o servidor:', error);
+                    
+                    // Em caso de erro de conexão, chamar callback de falha com mensagem real
+                    if (self._failureCallback) {
+                        self._failureCallback('Erro de comunicação com o servidor. Verifique a ligação ou contacte o suporte.');
+                    }
+                });
                 
                 return this;
             },

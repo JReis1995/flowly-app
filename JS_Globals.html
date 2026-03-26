@@ -580,9 +580,15 @@
                 window._creditsAdded = 0;
             }
 
-            const setupToken = document.body.dataset.setupToken || '';
-            const actionSetPassword = document.body.dataset.actionSetPassword === 'true';
-            const setPasswordToken = document.body.dataset.setPasswordToken || '';
+            let rawSetupToken = document.body.dataset.setupToken || '';
+            let rawActionSetPassword = document.body.dataset.actionSetPassword || '';
+            let rawSetPasswordToken = document.body.dataset.setPasswordToken || '';
+
+            // Sanitização crítica para ambiente estático (GitHub Pages)
+            // Se a string contiver '<?', significa que a tag GAS não foi processada no servidor.
+            const setupToken = rawSetupToken.includes('<?') ? '' : rawSetupToken;
+            const actionSetPassword = rawActionSetPassword.includes('<?') ? false : (rawActionSetPassword === 'true');
+            const setPasswordToken = rawSetPasswordToken.includes('<?') ? '' : rawSetPasswordToken;
 
             if (actionSetPassword && setPasswordToken) {
                 document.getElementById('authOverlay').classList.add('hidden');
