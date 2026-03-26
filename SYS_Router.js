@@ -41,22 +41,20 @@ function doGet(e) {
       template.creditsAdded = 0;
     }
   }
+  
   // 4. TRATAMENTO DE ATIVAÇÃO DE CONTA / DEFINIÇÃO DE PASSWORD
-  else if (page === "setup-password" && token) {
+  if (page === "setup-password" && token) {
     template.setupToken = token;
     template.initialPage = "setup-password";
   }
-  // Caso B: Ativação via Convite Admin ou Recuperação (setpassword)
   else if (action === "setpassword" && token) {
     template.actionSetPassword = true;
     template.setPasswordToken = token;
   }
-  // Caso C: Convite de Registo Inicial
   else if (action === "register" && token) {
     template.setupToken = token;
     template.initialPage = "register";
   }
-  // Caso D: Recuperação de Password
   else if (action === "recover" && token) {
     template.actionSetPassword = true;
     template.setPasswordToken = token;
