@@ -38,8 +38,8 @@ function doGet(e) {
     return createJsonResponse(jsonResponse);
   }
 
-  // 4. PÁGINAS ESPECIAIS (setup-password, register, etc.) - mantém HTML para compatibilidade
-  const template = HtmlService.createTemplateFromFile('Template');
+  // 4. SERVE O TEMPLATE PRINCIPAL (index.html como esqueleto, com includes por modulo)
+  const template = HtmlService.createTemplateFromFile('index');
   template.setupToken = "";
   template.actionSetPassword = false;
   template.setPasswordToken = "";
